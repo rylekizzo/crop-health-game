@@ -151,7 +151,7 @@ export function buildScenery(scene, settingId, env) {
     // buildings, or other crops. A textured ground reads as fields from the air;
     // a low-poly corn ring gives the near surroundings real height on the ground.
     group.add(makeCornBackdrop(6000)); // distant maize fields to the horizon
-    group.add(makeHomeSoilPlane(116, 88)); // the home field's brown soil, fading into the fields
+    group.add(makeHomeSoilPlane(240)); // the home field's brown soil: a square clearing, fields kept well back
   } else if (s.ground === 'flatvalley') {
     // Woodland: flat Central Valley ag land, ringed by other orchards — no ocean,
     // no marine fog, no highway, Central Valley landmarks (water tower, silos, huller).
@@ -366,28 +366,38 @@ function makeCornFieldTexture(size, res) {
   return tex;
 }
 
-// The home field's tilled brown soil: a detailed (repeated) soil texture on an
-// ellipse sized to the field, whose edge fades out (via an alpha map) so it
-// blends into the surrounding green fields.
-function makeHomeSoilPlane(w, d) {
+// The home field's tilled brown soil: a detailed (repeated) soil texture on a
+// square clearing whose straight edges fade out (via an alpha map) so the
+// surrounding green fields blend in well back from the field.
+function makeHomeSoilPlane(size) {
   const tex = makeSoilTexture('#6b4a2f', true);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(w / 6, d / 6);
+  tex.repeat.set(size / 6, size / 6);
   tex.anisotropy = 8;
 
+  // Square alpha mask: opaque centre, straight edges fading to transparent
+  // (the product of a horizontal and a vertical edge-fade).
   const ac = document.createElement('canvas');
   ac.width = ac.height = 256;
   const ax = ac.getContext('2d');
-  const g = ax.createRadialGradient(128, 128, 92, 128, 128, 128);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(0.72, '#ffffff');
-  g.addColorStop(1, '#000000');
-  ax.fillStyle = g;
+  ax.fillStyle = '#ffffff';
   ax.fillRect(0, 0, 256, 256);
+  ax.globalCompositeOperation = 'destination-in';
+  const f = 0.16; // fraction of each edge that fades
+  for (const horiz of [true, false]) {
+    const g = horiz ? ax.createLinearGradient(0, 0, 256, 0) : ax.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(f, 'rgba(0,0,0,1)');
+    g.addColorStop(1 - f, 'rgba(0,0,0,1)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ax.fillStyle = g;
+    ax.fillRect(0, 0, 256, 256);
+  }
+  ax.globalCompositeOperation = 'source-over';
   const alpha = new THREE.CanvasTexture(ac);
 
   const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(w, d),
+    new THREE.PlaneGeometry(size, size),
     new THREE.MeshStandardMaterial({ map: tex, alphaMap: alpha, transparent: true, roughness: 1.0 })
   );
   mesh.rotation.x = -Math.PI / 2;
