@@ -151,7 +151,7 @@ export function buildScenery(scene, settingId, env) {
     // buildings, or other crops. A textured ground reads as fields from the air;
     // a low-poly corn ring gives the near surroundings real height on the ground.
     group.add(makeCornBackdrop(6000)); // distant maize fields to the horizon
-    group.add(makeHomeSoilPlane(240)); // the home field's brown soil: a square clearing, fields kept well back
+    group.add(makeHomeSoilPlane(380)); // the home field's brown soil: a big square clearing, fields kept well back
   } else if (s.ground === 'flatvalley') {
     // Woodland: flat Central Valley ag land, ringed by other orchards — no ocean,
     // no marine fog, no highway, Central Valley landmarks (water tower, silos, huller).
@@ -317,10 +317,15 @@ function makeCornBackdrop(size) {
   tex.anisotropy = 8;
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(size, size),
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0 })
+    // Sits well below the soil plane, with a polygon depth offset, so the two big
+    // planes never z-fight (flicker) where the clearing overlaps the fields.
+    new THREE.MeshStandardMaterial({
+      map: tex, roughness: 1.0,
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+    })
   );
   mesh.rotation.x = -Math.PI / 2;
-  mesh.position.y = -0.05; // sits just under the home soil plane
+  mesh.position.y = -0.6;
   mesh.receiveShadow = true;
   return mesh;
 }
@@ -401,7 +406,7 @@ function makeHomeSoilPlane(size) {
     new THREE.MeshStandardMaterial({ map: tex, alphaMap: alpha, transparent: true, roughness: 1.0 })
   );
   mesh.rotation.x = -Math.PI / 2;
-  mesh.position.y = 0.02;
+  mesh.position.y = 0.05;
   mesh.receiveShadow = true;
   return mesh;
 }
