@@ -17,7 +17,7 @@
       /* Snap-to-location buttons — only in the satellite scale. */
       #sat-locations {
         position: fixed;
-        top: 128px;
+        bottom: 16px;
         left: 50%;
         transform: translateX(-50%);
         display: none;
@@ -44,7 +44,10 @@
         top: 12px;
         left: 50%;
         transform: translateX(-50%);
-        width: min(640px, 94vw);
+        /* Stay within the centre lane: the left (sat-info ~258px) and right
+           (readout/band-legend ~264px) panels each own a column, so cap the
+           width to the gap between them. It never overlaps them at any size. */
+        width: min(600px, calc(100vw - 560px));
         color: var(--ui-fg);
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
         background: var(--ui-bg);
