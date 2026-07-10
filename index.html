@@ -237,7 +237,10 @@
         top: 12px;
         left: 50%;
         transform: translateX(-50%);
-        width: min(640px, 94vw);
+        /* Stay in the centre lane so it never covers the side panels — notably
+           the band legend on the right, which the player may still want to read
+           after finishing a level. */
+        width: min(640px, calc(100vw - 560px));
         z-index: 12;
         display: none;
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -450,13 +453,20 @@
       #readout .row {
         display: flex;
         justify-content: space-between;
-        align-items: baseline;
-        padding: 3px 0;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 4px 0;
         border-top: 1px solid rgba(255,255,255,0.08);
       }
-      #readout .row .k { font-size: 11px; opacity: 0.72; }
-      #readout .row .v { font-size: 14px; font-weight: 600; }
-      #readout .row .u { font-size: 9px; opacity: 0.5; margin-left: 3px; }
+      #readout .row .k { font-size: 11px; opacity: 0.72; padding-top: 2px; }
+      #readout .row > span:last-child {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        line-height: 1.2;
+      }
+      #readout .row .v { font-size: 15px; font-weight: 600; }
+      #readout .row .u { font-size: 9px; opacity: 0.5; margin-left: 0; }
       #readout .row.headline .k { color: var(--accent); opacity: 1; }
       #readout .row.headline .v { color: var(--accent); font-size: 16px; }
       #readout .tag {
