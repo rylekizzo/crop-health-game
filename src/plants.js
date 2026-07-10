@@ -62,7 +62,7 @@ export function createField(cropId) {
     basePos[i * 3] = pl.x;
     basePos[i * 3 + 1] = pl.y;
     basePos[i * 3 + 2] = pl.z;
-    health[i] = THREE.MathUtils.clamp(fieldHealth(pl.x, pl.z) + (rng() - 0.5) * 0.06, 0.05, 1);
+    health[i] = THREE.MathUtils.clamp(fieldHealth(pl.x, pl.z, cropId) + (rng() - 0.5) * 0.06, 0.05, 1);
 
     const ci = THREE.MathUtils.clamp(Math.floor((pl.x - minX) / CHUNK), 0, nx - 1);
     const cj = THREE.MathUtils.clamp(Math.floor((pl.z - minZ) / CHUNK), 0, nz - 1);

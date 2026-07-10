@@ -26,11 +26,13 @@ function smoothNoise(x, z) {
 
 /**
  * Latent health at a world position, 0 (severely stressed) .. 1 (vigorous).
- * The field is mostly healthy with two deliberate teaching features:
- *   - a circular drought/heat patch (low gsw, low ETR)
- *   - a nutrient-deficient strip (chlorotic, moderate stress)
+ *
+ * Corn has its own pattern (see cornHealth); every other crop keeps the original
+ * field: a circular drought/heat patch plus a nutrient-deficient strip.
  */
-export function fieldHealth(x, z) {
+export function fieldHealth(x, z, cropId) {
+  if (cropId === 'corn') return cornHealth(x, z);
+
   let h = 0.82 + 0.1 * smoothNoise(x, z);
 
   // Drought patch centered at (18, -12).
@@ -40,6 +42,23 @@ export function fieldHealth(x, z) {
 
   // Nutrient-deficient strip along x ≈ -22.
   h -= 0.3 * Math.exp(-((x + 22) * (x + 22)) / (2 * 6.0 * 6.0));
+
+  return clamp(h, 0.05, 1);
+}
+
+/**
+ * Corn: a mostly-vigorous field with a single realistic problem — a narrow streak
+ * only a few rows wide (rows run along Z), like a drainage/compaction line. The
+ * stress is a gradient: worst near mid-field and easing toward the ends, plus
+ * fine mottling so the strip isn't a clean band.
+ */
+function cornHealth(x, z) {
+  let h = 0.86 + 0.08 * smoothNoise(x, z); // mostly healthy, gentle variation
+
+  const across = Math.exp(-((x + 5) * (x + 5)) / (2 * 1.1 * 1.1));  // a couple of rows wide, at x ≈ -5
+  const along = Math.exp(-((z - 4) * (z - 4)) / (2 * 15 * 15));     // gradient down the strip
+  const mottle = 0.72 + 0.28 * smoothNoise(x * 2.6, z * 1.3);       // patchiness within the strip
+  h -= 0.66 * across * along * mottle;
 
   return clamp(h, 0.05, 1);
 }
