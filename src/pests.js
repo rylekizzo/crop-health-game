@@ -95,6 +95,7 @@ export function buildPests(basePos, health, bounds) {
   const lb = new THREE.InstancedMesh(lbGeo, new THREE.MeshStandardMaterial({ color: 0xcf2b23, roughness: 0.5 }), Math.max(1, cells.length * PER));
   lb.count = cells.length * PER;
   lb.castShadow = false;
+  lb.frustumCulled = false;
   const lbPos = new Float32Array(Math.max(2, cells.length * PER * 2));
   for (let c = 0; c < cells.length; c++) {
     for (let k = 0; k < PER; k++) {
@@ -116,6 +117,7 @@ export function buildPests(basePos, health, bounds) {
   const ov = new THREE.InstancedMesh(ovGeo, new THREE.MeshBasicMaterial({ color: 0x6dfba0, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }), Math.max(1, cells.length));
   ov.count = cells.length;
   ov.renderOrder = 4;
+  ov.frustumCulled = false;
   for (let c = 0; c < cells.length; c++) {
     d.position.set(cells[c].cx, 0.4, cells[c].cz);
     d.rotation.set(0, 0, 0);
@@ -137,6 +139,8 @@ export function buildPests(basePos, health, bounds) {
   );
   drop.count = DROP_N;
   drop.castShadow = false;
+  drop.frustumCulled = false; // instances move far from the origin; bounds aren't
+                              // recomputed, so leave it in the render set always
   const cRed = new THREE.Color(0xd83a2e), cBlk = new THREE.Color(0x171310);
   for (let i = 0; i < DROP_N; i++) {
     d.position.set(0, -999, 0); d.scale.setScalar(0); d.updateMatrix(); drop.setMatrixAt(i, d.matrix);
