@@ -508,18 +508,25 @@
       #band-legend, #spectral { display: none; }
       body[data-scale="drone"] #band-legend,
       body[data-scale="satellite"] #band-legend,
+      body[data-scale="regional"] #band-legend,
       body[data-scale="drone"] #spectral,
-      body[data-scale="satellite"] #spectral { display: block; }
+      body[data-scale="satellite"] #spectral,
+      body[data-scale="regional"] #spectral { display: block; }
       body[data-scale="drone"] #crosshair,
       body[data-scale="drone"] #prompt,
       body[data-scale="drone"] #readout,
       body[data-scale="satellite"] #crosshair,
       body[data-scale="satellite"] #prompt,
-      body[data-scale="satellite"] #readout { display: none !important; }
+      body[data-scale="satellite"] #readout,
+      body[data-scale="regional"] #crosshair,
+      body[data-scale="regional"] #prompt,
+      body[data-scale="regional"] #readout,
+      body[data-scale="regional"] #inspect { display: none !important; }
       body[data-scale="satellite"] #sat-info { display: block; }
       body[data-scale="drone"] #hud-alt-row,
-      body[data-scale="satellite"] #hud-alt-row { display: block; }
-      body:not([data-scale="drone"]):not([data-scale="satellite"]) #hud-alt-row { display: none; }
+      body[data-scale="satellite"] #hud-alt-row,
+      body[data-scale="regional"] #hud-alt-row { display: block; }
+      body:not([data-scale="drone"]):not([data-scale="satellite"]):not([data-scale="regional"]) #hud-alt-row { display: none; }
     </style>
   </head>
   <body>
@@ -541,8 +548,10 @@
           <kbd>W A S D</kbd><span>Move</span>
           <kbd>Mouse</kbd><span>Look</span>
           <kbd>E</kbd><span>Clamp &amp; measure leaf (ground)</span>
+          <kbd>I</kbd><span>Inspect a plant for pests (ground)</span>
           <kbd>Tab</kbd><span>Board / leave the drone (stand next to it)</span>
-          <kbd>1–6</kbd><span>Drone band: RGB · NIR · Thermal · NDVI · NDRE · SIF</span>
+          <kbd>V</kbd><span>Satellite imagery of the region</span>
+          <kbd>1–6</kbd><span>Band: RGB · NIR · Thermal · NDVI · NDRE · SIF</span>
           <kbd>Space / C</kbd><span>Drone ascend / descend</span>
           <kbd>F</kbd><span>Switch crop (corn ⇄ strawberry ⇄ almond)</span>
           <kbd>H</kbd><span>Hint for the current mission step</span>

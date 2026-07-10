@@ -6,6 +6,7 @@ import { CROP_IDS, CROPS } from './crops.js';
 import { Controller } from './controller.js';
 import { Drone } from './drone.js';
 import { SatelliteView } from './satellite.js';
+import { Telescope } from './telescope.js';
 import { LI600, VIEW_LAYER } from './li600.js';
 import { truePhysiology } from './healthField.js';
 import { buildPests } from './pests.js';
@@ -119,6 +120,10 @@ landDrone(); // start with it parked
 const satellite = new SatelliteView(renderer);
 satellite.setSite(scenery.site.lat, scenery.site.lon); // aim it at the starting field's location
 
+// "Telescope" regional satellite view (level 3) — a 2D valley of almond plots.
+const telescope = new Telescope();
+let regionalReturn = 'proximal'; // scale to return to when leaving the telescope
+
 // Snap-to-location buttons (visible only in the satellite scale).
 for (const btn of document.querySelectorAll('#sat-locations button')) {
   btn.addEventListener('click', () => {
@@ -231,10 +236,10 @@ satellite.onExtremesFound = () => mission.sync({ satExtremes: true });
 // Enter was pressed on a completion box → advance to the next level (or finish).
 // Pointer stays locked throughout, so the player keeps moving while they read.
 mission.onLevelComplete = (next) => {
-  if (next === 'strawberry') {
+  if (next === 'strawberry' || next === 'almond') {
     setScale('proximal');
-    goToCrop(CROP_IDS.indexOf('strawberry'));
-    mission.startLevel('strawberry');
+    goToCrop(CROP_IDS.indexOf(next));
+    mission.startLevel(next);
   }
 };
 
@@ -248,6 +253,7 @@ function setBand(id) {
   bandId = id;
   recolorField(id);
   satellite.setBand(id);
+  telescope.setBand(id);
   const b = BAND_BY_ID[id];
   lgTitle.textContent = b.label;
   lgBar.style.background = legendGradient(id);
@@ -263,6 +269,7 @@ const SCALE_LABEL = {
   proximal: 'proximal (ground)',
   drone: 'drone (aerial)',
   satellite: 'satellite (orbital)',
+  regional: 'satellite (regional)',
 };
 
 function setScale(next) {
@@ -276,14 +283,18 @@ function setScale(next) {
   // the frozen shadow map once so the field's shadows are valid again.
   if (prev === 'satellite') renderer.shadowMap.needsUpdate = true;
 
-  // Controls: field scales use pointer lock; satellite uses orbit (free cursor).
+  // Own-view scales (satellite globe, regional telescope) run cursor-free; field
+  // scales (proximal/drone) use pointer lock.
   satellite.setActive(next === 'satellite');
-  if (next === 'satellite') {
+  telescope.setActive(next === 'regional');
+  const ownView = next === 'satellite' || next === 'regional';
+  const prevOwn = prev === 'satellite' || prev === 'regional';
+  if (ownView) {
     if (controller.locked) controller.controls.unlock();
     overlay.classList.add('hidden');
   } else {
     controller.setMode(next === 'drone' ? 'fly' : 'walk');
-    if (prev === 'satellite' && !controller.locked) controller.lock(); // re-engage (Tab = user gesture)
+    if (prevOwn && !controller.locked) controller.lock(); // re-engage (key press = user gesture)
   }
 
   // Scale-specific UI / visuals.
@@ -299,7 +310,8 @@ function setScale(next) {
     inspectPanel.classList.remove('show');
     ring.visible = false;
     measuredInstance = -1;
-    setBand(bandId); // apply current band to canopy + globe tile
+    if (next === 'regional') { bandId = 'rgb'; setBand('rgb'); } // start the valley in true color
+    else setBand(bandId); // apply current band to canopy / globe
   }
 
   updateHaze();
@@ -447,7 +459,13 @@ document.addEventListener('keydown', (e) => {
     mission.proceed(); // advance a level-completion box
     return;
   }
-  if (scale === 'drone' || scale === 'satellite') {
+  // V toggles the regional satellite (telescope) view.
+  if (e.code === 'KeyV' && !e.repeat) {
+    if (scale === 'regional') setScale(regionalReturn);
+    else if (scale === 'drone' || scale === 'proximal') { regionalReturn = scale; setScale('regional'); }
+    return;
+  }
+  if (scale === 'drone' || scale === 'satellite' || scale === 'regional') {
     const b = BANDS.find((x) => x.key === e.key);
     if (b) setBand(b.id);
     return;
@@ -495,6 +513,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   satellite.resize();
+  telescope.resize();
 });
 
 // --- Loop ---
@@ -513,6 +532,8 @@ function animate() {
 
   if (scale === 'satellite') {
     satellite.update(dt);
+  } else if (scale === 'regional') {
+    // telescope canvas is event-driven; nothing per-frame
   } else {
     controller.update(dt, scale === 'drone' ? flyBound : walkBound);
     scenery.update(dt);
@@ -573,6 +594,9 @@ function animate() {
     if (scale === 'satellite') {
       hudPos.textContent = scenery.region;
       hudAlt.textContent = `${satellite.altitudeKm.toLocaleString()} km`;
+    } else if (scale === 'regional') {
+      hudPos.textContent = 'Central Valley, CA';
+      hudAlt.textContent = `${telescope.altitudeKm.toLocaleString()} km`;
     } else {
       const p = scale === 'drone' ? drone.group.position : controller.object.position;
       hudPos.textContent = `${p.x.toFixed(1)}, ${p.z.toFixed(1)}`;
@@ -585,6 +609,8 @@ function animate() {
   // Render.
   if (scale === 'satellite') {
     satellite.render(renderer); // three.js globe drawn into the main canvas
+  } else if (scale === 'regional') {
+    // the telescope's own 2D canvas covers the screen — nothing to render here
   } else if (scale === 'proximal') {
     renderer.autoClear = true;
     camera.layers.set(0);

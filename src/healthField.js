@@ -32,6 +32,7 @@ function smoothNoise(x, z) {
  */
 export function fieldHealth(x, z, cropId) {
   if (cropId === 'corn') return cornHealth(x, z);
+  if (cropId === 'almond') return almondHealth(x, z);
 
   let h = 0.82 + 0.1 * smoothNoise(x, z);
 
@@ -66,6 +67,17 @@ function cornHealth(x, z) {
   h -= 1.0 * across * along * mottle;
 
   return clamp(h, 0.05, 1);
+}
+
+/**
+ * Almond: a mostly-healthy orchard with a water-stressed block — a failed lateral
+ * irrigation line has left one zone dry, so it runs hot (thermal) and low-vigor.
+ */
+function almondHealth(x, z) {
+  let h = 0.8 + 0.08 * smoothNoise(x * 0.7, z * 0.7);
+  const dx = x - 32, dz = z + 8;
+  h -= 0.55 * Math.exp(-(dx * dx + dz * dz) / (2 * 22 * 22)); // the dry zone
+  return clamp(h, 0.08, 1);
 }
 
 /**

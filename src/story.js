@@ -108,6 +108,61 @@ const BERRY_COMPLETE = {
     "the table. What you released instead were ladybugs: a single one eats dozens of aphids a day, " +
     "and they're a classic biological control. They'll knock the infestation down and keep it in " +
     "check — no chemicals required.",
+  button: 'On to the almond orchard →',
+  next: 'almond',
+};
+
+// --- Level 3: almond — water stress + regional satellite --------------------
+const ALMOND_BEATS = [
+  {
+    eyebrow: 'Orchard · ground',
+    objective: 'Board the drone — walk to it and press Tab',
+    story:
+      'This almond grower has a block of trees looking off, but from the ground the orchard seems ' +
+      'fine. Almonds are thirsty and this is the dry season — get airborne to look for trouble.',
+    hint: 'The drone is parked near where you started, a little behind and to the side. Stand next to it and press Tab.',
+    done: (s) => s.scale === 'drone',
+  },
+  {
+    eyebrow: 'Drone · thermal',
+    objective: 'Find the trouble — switch to Thermal (press 3) and spot the hot block',
+    story:
+      'Water-stressed trees close their stomata to save moisture — so they stop transpiring and ' +
+      'run hot. A thermal camera makes that visible: a well-watered canopy is cool, a thirsty one ' +
+      'glows. Find the warm block.',
+    hint: 'Press 3 for Thermal and fly over the orchard. The water-stressed block shows up hot (bright).',
+    done: (s) => s.scale === 'drone' && s.band === 'thermal',
+  },
+  {
+    eyebrow: 'Scale up',
+    objective: "The grower asks about their other 5,000 acres — press V for satellite imagery",
+    story:
+      "You've pinned the problem in this orchard. Now the grower asks: can you check all 5,000 acres " +
+      'of their other plots the same way? A drone can\'t — that would take weeks. This is what ' +
+      'satellite imagery is for: whole regions at once.',
+    hint: 'Press V to pull up the satellite view of the valley.',
+    done: (s) => s.scale === 'regional',
+  },
+  {
+    eyebrow: 'Satellite · valley',
+    objective: 'Scan the valley — switch bands (Thermal 3 / NDVI 4) to find the stressed blocks',
+    story:
+      'Every rectangle is an almond block, hundreds of acres each. Switch spectral bands to read ' +
+      'them all at once: Thermal picks out the hot, water-short blocks; NDVI shows low vigor. ' +
+      'Drag to pan across the valley and see which plots need attention.',
+    hint: 'Drag to pan. Press 3 (Thermal) or 4 (NDVI) — the water-stressed blocks stand out from the healthy green ones.',
+    done: (s) => s.scale === 'regional' && (s.band === 'thermal' || s.band === 'ndvi' || s.band === 'ndre'),
+  },
+];
+
+const ALMOND_COMPLETE = {
+  title: 'A water problem, at every scale',
+  body:
+    'The hot block was water stress — a failed lateral line left those trees without irrigation, so ' +
+    'they closed their stomata, stopped cooling themselves, and ran hot (exactly what thermal sees). ' +
+    'On the ground it looked fine; only the aerial and orbital views revealed it.\n\n' +
+    'And across 5,000 acres, satellite imagery is the only practical way to flag which blocks to send ' +
+    'a crew or a drone to next. The right scale for the right question — the whole point of the job.',
   button: 'Finish',
   next: null,
 };
@@ -115,6 +170,7 @@ const BERRY_COMPLETE = {
 const LEVELS = {
   corn: { beats: CORN_BEATS, complete: CORN_COMPLETE },
   strawberry: { beats: BERRY_BEATS, complete: BERRY_COMPLETE },
+  almond: { beats: ALMOND_BEATS, complete: ALMOND_COMPLETE },
 };
 
 const AUTO_HINT_MS = 30000;
