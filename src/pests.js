@@ -17,28 +17,37 @@ export function buildPests(basePos, health, bounds) {
   const infested = []; // stressed plant indices
   for (let i = 0; i < n; i++) if (health[i] < 0.45) infested.push(i);
 
-  // --- yellow sticky-trap flags on a jittered grid ---
-  const flagGeo = new THREE.PlaneGeometry(0.2, 0.34);
-  flagGeo.translate(0, 0.17, 0); // stand on the ground
+  // --- yellow sticky-trap cards on thin metal poles, above the plants ---
+  // A uniform grid; every card faces the same direction. Poles are one mesh
+  // (metal), cards are split into clean / bug-covered by proximity to sick plants.
+  const POLE_H = 0.95;      // pole height (well above the ~0.25 m strawberries)
+  const CARD_Y = 0.82;      // card centre, near the top of the pole
+  const poleGeo = new THREE.CylinderGeometry(0.008, 0.008, POLE_H, 6);
+  poleGeo.translate(0, POLE_H / 2, 0);
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.35, metalness: 0.75 });
+
+  const cardGeo = new THREE.PlaneGeometry(0.2, 0.3);
+  cardGeo.translate(0, CARD_Y, 0);
   const cleanMat = new THREE.MeshStandardMaterial({ map: flagTexture(5), roughness: 0.85, side: THREE.DoubleSide });
   const dirtyMat = new THREE.MeshStandardMaterial({ map: flagTexture(80), roughness: 0.85, side: THREE.DoubleSide });
 
-  const clean = [], dirty = [];
+  const all = [], clean = [], dirty = [];
   const halfW = bounds.width / 2, halfL = bounds.length / 2;
-  for (let x = -halfW; x <= halfW; x += 5.5) {
-    for (let z = -halfL; z <= halfL; z += 5.5) {
-      const wx = x + (Math.random() - 0.5) * 2.5;
-      const wz = z + (Math.random() - 0.5) * 2.5;
+  const SPACING = 5;
+  for (let x = -halfW; x <= halfW + 0.001; x += SPACING) {
+    for (let z = -halfL; z <= halfL + 0.001; z += SPACING) {
       let near = false;
       for (const idx of infested) {
-        const dx = wx - basePos[idx * 3], dz = wz - basePos[idx * 3 + 2];
+        const dx = x - basePos[idx * 3], dz = z - basePos[idx * 3 + 2];
         if (dx * dx + dz * dz < 16) { near = true; break; }
       }
-      (near ? dirty : clean).push({ x: wx, z: wz, rot: Math.random() * Math.PI });
+      all.push({ x, z });
+      (near ? dirty : clean).push({ x, z });
     }
   }
-  group.add(flagMesh(flagGeo, cleanMat, clean));
-  group.add(flagMesh(flagGeo, dirtyMat, dirty));
+  group.add(flagMesh(poleGeo, poleMat, all));
+  group.add(flagMesh(cardGeo, cleanMat, clean));
+  group.add(flagMesh(cardGeo, dirtyMat, dirty));
 
   // --- buzzing aphid swarm (points) over the infested plants ---
   const swarm = infested.slice(0, 150);
@@ -140,6 +149,8 @@ export function buildPests(basePos, health, bounds) {
   };
 }
 
+// Instance `geo` at each item's (x, z) on the ground — no rotation, so all the
+// cards face the same way.
 function flagMesh(geo, mat, items) {
   const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, items.length));
   mesh.count = items.length;
@@ -147,7 +158,6 @@ function flagMesh(geo, mat, items) {
   const d = new THREE.Object3D();
   for (let i = 0; i < items.length; i++) {
     d.position.set(items[i].x, 0, items[i].z);
-    d.rotation.set(0, items[i].rot, 0);
     d.updateMatrix();
     mesh.setMatrixAt(i, d.matrix);
   }
