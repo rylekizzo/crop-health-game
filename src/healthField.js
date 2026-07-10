@@ -56,10 +56,13 @@ function cornHealth(x, z) {
   let h = 0.86 + 0.08 * smoothNoise(x, z); // mostly healthy, gentle variation
 
   const across = Math.exp(-((x + 5) * (x + 5)) / (2 * 1.1 * 1.1));  // a couple of rows wide, at x ≈ -5
-  const along = Math.exp(-((z + 14) * (z + 14)) / (2 * 15 * 15));   // gradient down the strip; worst deep in the field (z ≈ -14), away from the entrance
+  // Gradient down the strip, worst deep in the field (z ≈ -14), but with a floor
+  // so the whole streak carries at least a slight stress (visible yellow / lower
+  // NDVI & photosynthesis) even at the entrance — drawing the player in.
+  const along = 0.33 + 0.67 * Math.exp(-((z + 14) * (z + 14)) / (2 * 16 * 16));
   const mottle = 0.72 + 0.28 * smoothNoise(x * 2.6, z * 1.3);       // patchiness within the strip
   // Deep enough that the core bottoms out (health ~0.05–0.14) → solid red in NDVI,
-  // while the width and ends still gradient out through orange to green.
+  // while the width and ends gradient out through orange to green.
   h -= 1.0 * across * along * mottle;
 
   return clamp(h, 0.05, 1);
