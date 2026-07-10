@@ -155,7 +155,9 @@ export function buildScenery(scene, settingId, env) {
     // A tractor slowly working a row out in the bare soil, well clear of the field.
     const tractor = makeTractor();
     group.add(tractor);
-    updaters.push(makeTractorUpdater(tractor));
+    const smoke = makeSmoke();
+    group.add(smoke.group);
+    updaters.push(makeTractorUpdater(tractor, smoke));
   } else if (s.ground === 'flatvalley') {
     // Woodland: flat Central Valley ag land, ringed by other orchards — no ocean,
     // no marine fog, no highway, Central Valley landmarks (water tower, silos, huller).
@@ -464,11 +466,17 @@ function makeTractor() {
 }
 
 // Drives the tractor slowly up and down a Z row out in the bare soil, turning
-// 180° at each end (a headland turn) rather than teleporting.
-function makeTractorUpdater(tractor) {
+// 180° at each end (a headland turn) rather than teleporting. Also emits periodic
+// exhaust puffs from the stack.
+function makeTractorUpdater(tractor, smoke) {
   const X = 78, Z0 = -70, Z1 = 70, speed = 2.0, turnDur = 3.4;
   let z = Z0, dir = 1, heading = 0, state = 'drive', turnT = 0, turnFrom = 0;
   tractor.position.set(X, 0, z);
+
+  const exLocal = new THREE.Vector3(0.42, 2.45, 1.55); // top of the exhaust stack
+  const exWorld = new THREE.Vector3();
+  let puffTimer = 0.3;
+
   return (dt) => {
     if (state === 'drive') {
       z += dir * speed * dt;
@@ -486,6 +494,83 @@ function makeTractorUpdater(tractor) {
     }
     tractor.position.set(X, 0, z);
     tractor.rotation.y = heading;
+
+    // Exhaust smoke: puff periodically from the stack's world position.
+    smoke.update(dt);
+    puffTimer -= dt;
+    if (puffTimer <= 0) {
+      puffTimer = 0.42 + Math.random() * 0.28;
+      tractor.updateMatrixWorld();
+      exWorld.copy(exLocal);
+      tractor.localToWorld(exWorld);
+      smoke.spawn(exWorld.x, exWorld.y, exWorld.z);
+    }
+  };
+}
+
+// A small pool of billboard smoke puffs (world-space, so they trail behind the
+// moving tractor). Each puff rises, expands, and fades.
+function makeSmokeTexture() {
+  const s = 64;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.5)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, s, s);
+  const tex = new THREE.CanvasTexture(c);
+  return tex;
+}
+
+function makeSmoke() {
+  const tex = makeSmokeTexture();
+  const group = new THREE.Group();
+  const N = 18;
+  const puffs = [];
+  for (let i = 0; i < N; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x4a4946, transparent: true, opacity: 0, depthWrite: false }));
+    sp.visible = false;
+    sp.userData = { active: false, age: 0, life: 1, vx: 0, vy: 0, vz: 0, s0: 0.4 };
+    group.add(sp);
+    puffs.push(sp);
+  }
+  let cursor = 0;
+
+  return {
+    group,
+    spawn(x, y, z) {
+      const sp = puffs[cursor];
+      cursor = (cursor + 1) % N;
+      sp.position.set(x + (Math.random() - 0.5) * 0.06, y, z + (Math.random() - 0.5) * 0.06);
+      const u = sp.userData;
+      u.active = true;
+      u.age = 0;
+      u.life = 2.2 + Math.random() * 0.9;
+      u.vy = 0.8 + Math.random() * 0.4;
+      u.vx = (Math.random() - 0.5) * 0.25;
+      u.vz = (Math.random() - 0.5) * 0.25;
+      u.s0 = 0.35 + Math.random() * 0.15;
+      sp.visible = true;
+    },
+    update(dt) {
+      for (const sp of puffs) {
+        const u = sp.userData;
+        if (!u.active) continue;
+        u.age += dt;
+        if (u.age >= u.life) { u.active = false; sp.visible = false; continue; }
+        const t = u.age / u.life;
+        sp.position.x += u.vx * dt;
+        sp.position.y += u.vy * dt;
+        sp.position.z += u.vz * dt;
+        u.vy *= 1 - dt * 0.3; // buoyant rise eases off
+        const scale = u.s0 + t * 1.7;
+        sp.scale.set(scale, scale, 1);
+        sp.material.opacity = 0.55 * Math.min(1, t * 6) * (1 - t); // quick in, slow out
+      }
+    },
   };
 }
 
