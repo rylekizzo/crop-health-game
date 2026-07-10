@@ -1,11 +1,11 @@
 import { bandColor } from './bands.js';
 
 /**
- * "Telescope" regional satellite view (level 3): a 2D patchwork of Central Valley
- * almond blocks seen through a scope vignette. Distinct from the 3D globe — this
- * is about scanning thousands of acres of *other* plots at once. Switching the
- * spectral band (1–6) recolours every block so you can spot the water-stressed
- * ones across the whole valley; drag to pan the scope around.
+ * "Telescope" regional satellite view (level 3): a dense, heterogeneous 2D
+ * patchwork of Central Valley fields seen through a scope vignette — thousands of
+ * parcels of varying size, split from a square-mile section grid, with roads and
+ * black no-data (water / urban / fallow). Switching the spectral band (1–6)
+ * recolours every parcel; drag to pan across the valley.
  */
 export class Telescope {
   constructor() {
@@ -21,29 +21,47 @@ export class Telescope {
     this.bandId = 'rgb';
     this._active = false;
     this.mouse = { down: false, lx: 0, ly: 0 };
-
-    // Virtual valley of orchard blocks.
-    this.BLOCK = 110; // world px per block (incl. road)
-    this.PLOT = 94;
-    this.cols = 46;
-    this.rows = 36;
-    this.worldW = this.cols * this.BLOCK;
-    this.worldH = this.rows * this.BLOCK;
     this.scale = 1;
     this.panX = 0;
     this.panY = 0;
 
+    // Fields: split each ~section into a few parcels of varying size.
+    this.SEC = 150;
+    const secCols = 44, secRows = 34;
+    this.worldW = secCols * this.SEC;
+    this.worldH = secRows * this.SEC;
     this.plots = [];
-    for (let cx = 0; cx < this.cols; cx++) {
-      for (let cy = 0; cy < this.rows; cy++) {
-        const u = cx / this.cols, v = cy / this.rows;
-        const rot = ((cx + cy) % 3 === 0); // some blocks planted the other way (rows run east-west)
-        this.plots.push({
-          x: cx * this.BLOCK, y: cy * this.BLOCK,
-          health: valleyHealth(u, v) + (Math.random() - 0.5) * 0.06,
-          rows: rot,
-        });
+    const subdivide = (x, y, w, h, depth) => {
+      if (depth < 3 && w > 44 && h > 44 && Math.random() < 0.8 - depth * 0.17) {
+        const splitV = w >= h ? Math.random() < 0.72 : Math.random() < 0.28;
+        const r = 0.32 + Math.random() * 0.36;
+        if (splitV) { subdivide(x, y, w * r, h, depth + 1); subdivide(x + w * r, y, w * (1 - r), h, depth + 1); }
+        else { subdivide(x, y, w, h * r, depth + 1); subdivide(x, y + h * r, w, h * (1 - r), depth + 1); }
+        return;
       }
+      const cx = (x + w / 2) / this.worldW, cy = (y + h / 2) / this.worldH;
+      const base = valleyHealth(cx, cy);
+      // strong per-parcel variance (different crops / growth stages) over a
+      // gentle regional trend → the heterogeneous CA-field look.
+      const health = clamp01(base * 0.4 + Math.random() * 0.56 + 0.04);
+      this.plots.push({ x, y, w, h, health, noData: noData(cx, cy) });
+    };
+    for (let sx = 0; sx < secCols; sx++) {
+      for (let sy = 0; sy < secRows; sy++) subdivide(sx * this.SEC, sy * this.SEC, this.SEC, this.SEC, 0);
+    }
+
+    // A few major roads / canals wandering across the valley.
+    this.roads = [];
+    for (let i = 0; i < 6; i++) {
+      const horiz = i % 2 === 0;
+      const at = 0.1 + Math.random() * 0.8;
+      const pts = [];
+      for (let t = 0; t <= 1.0001; t += 0.08) {
+        const wob = Math.sin(t * 5 + i * 1.3) * 0.05;
+        if (horiz) pts.push([t * this.worldW, (at + wob) * this.worldH]);
+        else pts.push([(at + wob) * this.worldW, t * this.worldH]);
+      }
+      this.roads.push(pts);
     }
 
     this._onMove = this._handleMove.bind(this);
@@ -77,10 +95,9 @@ export class Telescope {
     this._W = window.innerWidth;
     this._H = window.innerHeight;
     const minDim = Math.min(this._W, this._H);
-    this.scale = (minDim * 0.08) / this.BLOCK; // ~10 blocks across the scope
-    // start centred on the valley, biased toward the dry region
+    this.scale = (minDim * 0.11) / this.SEC; // ~7 sections across the scope
     this.panX = this._W / 2 - this.worldW * this.scale * 0.62;
-    this.panY = this._H / 2 - this.worldH * this.scale * 0.6;
+    this.panY = this._H / 2 - this.worldH * this.scale * 0.58;
     this._clamp();
     if (this._active) this._draw();
   }
@@ -106,26 +123,34 @@ export class Telescope {
   _draw() {
     const ctx = this.ctx;
     if (!ctx) return;
-    ctx.fillStyle = '#7c6a48'; // valley soil between blocks
+    ctx.fillStyle = '#080b09'; // black no-data background
     ctx.fillRect(0, 0, this._W, this._H);
 
-    const s = this.scale, ps = this.PLOT * s;
-    const col = bandColor('rgb', 0).constructor ? new (bandColor('rgb', 0).constructor)() : null;
+    const s = this.scale;
     for (const p of this.plots) {
-      const x = p.x * s + this.panX;
-      const y = p.y * s + this.panY;
-      if (x + ps < 0 || y + ps < 0 || x > this._W || y > this._H) continue; // cull
-      const c = bandColor(this.bandId, Math.max(0, Math.min(1, p.health)));
+      const x = p.x * s + this.panX, y = p.y * s + this.panY;
+      const w = p.w * s, h = p.h * s;
+      if (x + w < 0 || y + h < 0 || x > this._W || y > this._H) continue;
+      if (p.noData) continue; // leave black
+      const c = bandColor(this.bandId, p.health);
       ctx.fillStyle = `rgb(${(c.r * 255) | 0},${(c.g * 255) | 0},${(c.b * 255) | 0})`;
-      ctx.fillRect(x, y, ps, ps);
-      // faint row texture
-      ctx.strokeStyle = 'rgba(0,0,0,0.10)';
-      ctx.lineWidth = 1;
+      ctx.fillRect(x, y, w, h);
+      if (w > 3 && h > 3) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      }
+    }
+
+    // roads / canals
+    ctx.strokeStyle = 'rgba(10,12,10,0.92)';
+    ctx.lineWidth = Math.max(2, 5 * s);
+    ctx.lineJoin = 'round';
+    for (const road of this.roads) {
       ctx.beginPath();
-      const n = 5;
-      for (let i = 1; i < n; i++) {
-        if (p.rows) { const yy = y + (ps * i) / n; ctx.moveTo(x, yy); ctx.lineTo(x + ps, yy); }
-        else { const xx = x + (ps * i) / n; ctx.moveTo(xx, y); ctx.lineTo(xx, y + ps); }
+      for (let i = 0; i < road.length; i++) {
+        const rx = road[i][0] * s + this.panX, ry = road[i][1] * s + this.panY;
+        if (i === 0) ctx.moveTo(rx, ry); else ctx.lineTo(rx, ry);
       }
       ctx.stroke();
     }
@@ -136,26 +161,23 @@ export class Telescope {
   _drawScope(ctx) {
     const cx = this._W / 2, cy = this._H / 2;
     const minDim = Math.min(this._W, this._H);
-    const r = minDim * 0.42;
+    const r = minDim * 0.44;
 
-    // vignette: clear circle in the middle, dark to opaque at the edges
-    const g = ctx.createRadialGradient(cx, cy, r * 0.72, cx, cy, r * 1.25);
+    const g = ctx.createRadialGradient(cx, cy, r * 0.74, cx, cy, r * 1.22);
     g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(0.6, 'rgba(6,10,8,0.72)');
-    g.addColorStop(1, 'rgba(3,6,4,1)');
+    g.addColorStop(0.62, 'rgba(4,7,5,0.72)');
+    g.addColorStop(1, 'rgba(2,4,3,1)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this._W, this._H);
 
-    // scope ring
     ctx.strokeStyle = 'rgba(0,0,0,0.85)';
     ctx.lineWidth = 6;
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = 'rgba(180,200,180,0.18)';
+    ctx.strokeStyle = 'rgba(180,200,180,0.16)';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(cx, cy, r - 3, 0, Math.PI * 2); ctx.stroke();
 
-    // reticle
-    ctx.strokeStyle = 'rgba(200,220,200,0.22)';
+    ctx.strokeStyle = 'rgba(200,220,200,0.2)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
@@ -171,21 +193,29 @@ export class Telescope {
     ctx.fillStyle = 'rgba(210,225,210,0.6)';
     ctx.font = '600 13px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Central Valley almond plots · drag to pan · 1–6 change band', cx, cy + r + 26);
+    ctx.fillText('Central Valley · drag to pan · 1–6 change band', cx, cy + r + 26);
     ctx.textAlign = 'left';
   }
 }
 
 function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
-// Valley-scale health: mostly vigorous, with a dry (water-stressed) region and a
-// lush canal band. u,v ∈ 0..1 across the valley.
+// Gentle valley-scale trend (the dry water-stressed region + a canal-fed band);
+// per-parcel randomness on top makes the field mosaic heterogeneous.
 function valleyHealth(u, v) {
-  let h = 0.72 + 0.15 * Math.sin(u * 7.5 + 0.3) * Math.cos(v * 5.5);
-  h += 0.1 * Math.sin(u * 17) * Math.sin(v * 13);
+  let h = 0.6 + 0.2 * Math.sin(u * 6.5 + 0.3) * Math.cos(v * 5.0);
   const dx = u - 0.66, dy = v - 0.62;
-  h -= 0.5 * Math.exp(-(dx * dx + dy * dy) / (2 * 0.02)); // dry / water-stressed
-  const d = Math.abs(v - (0.38 + 0.08 * Math.sin(u * 6.5)));
-  h += 0.14 * Math.exp(-(d * d) / (2 * 0.0013)); // canal-fed lush band
+  h -= 0.4 * Math.exp(-(dx * dx + dy * dy) / (2 * 0.03)); // dry / water-stressed region
+  const d = Math.abs(v - (0.4 + 0.09 * Math.sin(u * 6.0)));
+  h += 0.16 * Math.exp(-(d * d) / (2 * 0.0016)); // canal-fed lush band
   return clamp01(h);
+}
+
+// Black no-data: an urban/water cluster, a reservoir, and scattered fallow.
+function noData(u, v) {
+  const a = (u - 0.86) ** 2 + (v - 0.2) ** 2;
+  if (a < 0.006) return Math.random() < 0.85;
+  const b = (u - 0.1) ** 2 + (v - 0.86) ** 2;
+  if (b < 0.003) return Math.random() < 0.8;
+  return Math.random() < 0.04;
 }

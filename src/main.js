@@ -504,7 +504,8 @@ controller.controls.addEventListener('lock', () => {
   if (!mission.started) mission.startLevel('corn'); // begin level 1 on first entry
 });
 controller.controls.addEventListener('unlock', () => {
-  if (scale !== 'satellite') overlay.classList.remove('hidden');
+  // Own-view scales (satellite/regional) run cursor-free — don't pop the overlay.
+  if (scale !== 'satellite' && scale !== 'regional') overlay.classList.remove('hidden');
 });
 
 // --- Resize ---
