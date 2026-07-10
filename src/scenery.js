@@ -152,6 +152,10 @@ export function buildScenery(scene, settingId, env) {
     // a low-poly corn ring gives the near surroundings real height on the ground.
     group.add(makeCornBackdrop(6000)); // distant maize fields to the horizon
     group.add(makeHomeSoilPlane(380)); // the home field's brown soil: a big square clearing, fields kept well back
+    // A tractor slowly working a row out in the bare soil, well clear of the field.
+    const tractor = makeTractor();
+    group.add(tractor);
+    updaters.push(makeTractorUpdater(tractor));
   } else if (s.ground === 'flatvalley') {
     // Woodland: flat Central Valley ag land, ringed by other orchards — no ocean,
     // no marine fog, no highway, Central Valley landmarks (water tower, silos, huller).
@@ -409,6 +413,80 @@ function makeHomeSoilPlane(size) {
   mesh.position.y = 0.05;
   mesh.receiveShadow = true;
   return mesh;
+}
+
+// A low-poly farm tractor (green cab tractor, ~4.5 m), facing +Z (its driving
+// direction). castShadow is off because the frozen shadow map wouldn't follow it.
+function makeTractor() {
+  const g = new THREE.Group();
+  const body = new THREE.MeshStandardMaterial({ color: 0x2f7d32, roughness: 0.55, metalness: 0.2 });
+  const tire = new THREE.MeshStandardMaterial({ color: 0x161719, roughness: 0.75 });
+  const hub = new THREE.MeshStandardMaterial({ color: 0xd8b53a, roughness: 0.5, metalness: 0.3 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x263441, roughness: 0.2, metalness: 0.4 });
+
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.5, 3.2), body);
+  chassis.position.set(0, 0.95, 0);
+  g.add(chassis);
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.72, 1.5), body);
+  hood.position.set(0, 1.08, 1.15);
+  g.add(hood);
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.16, 1.0, 1.2), body);
+  cab.position.set(0, 1.68, -0.55);
+  g.add(cab);
+  const win = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.62, 1.24), glass);
+  win.position.set(0, 1.82, -0.55);
+  g.add(win);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.32, 0.12, 1.36), body);
+  roof.position.set(0, 2.26, -0.55);
+  g.add(roof);
+  const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 1.0, 8), tire);
+  exhaust.position.set(0.42, 1.95, 1.55);
+  g.add(exhaust);
+
+  const wheel = (r, w, x, z) => {
+    const t = new THREE.Group();
+    const rubber = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 16), tire);
+    rubber.rotation.z = Math.PI / 2;
+    t.add(rubber);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.42, r * 0.42, w + 0.02, 10), hub);
+    cap.rotation.z = Math.PI / 2;
+    t.add(cap);
+    t.position.set(x, r, z);
+    return t;
+  };
+  g.add(wheel(0.82, 0.42, 0.74, -0.7));
+  g.add(wheel(0.82, 0.42, -0.74, -0.7));
+  g.add(wheel(0.46, 0.3, 0.64, 1.35));
+  g.add(wheel(0.46, 0.3, -0.64, 1.35));
+
+  g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return g;
+}
+
+// Drives the tractor slowly up and down a Z row out in the bare soil, turning
+// 180° at each end (a headland turn) rather than teleporting.
+function makeTractorUpdater(tractor) {
+  const X = 78, Z0 = -70, Z1 = 70, speed = 2.0, turnDur = 3.4;
+  let z = Z0, dir = 1, heading = 0, state = 'drive', turnT = 0, turnFrom = 0;
+  tractor.position.set(X, 0, z);
+  return (dt) => {
+    if (state === 'drive') {
+      z += dir * speed * dt;
+      if ((dir > 0 && z >= Z1) || (dir < 0 && z <= Z0)) {
+        z = dir > 0 ? Z1 : Z0;
+        state = 'turn';
+        turnT = 0;
+        turnFrom = heading;
+      }
+    } else {
+      turnT += dt;
+      const t = Math.min(turnT / turnDur, 1);
+      heading = turnFrom + Math.PI * t; // 180° headland turn
+      if (t >= 1) { dir = -dir; state = 'drive'; }
+    }
+    tractor.position.set(X, 0, z);
+    tractor.rotation.y = heading;
+  };
 }
 
 // ---- farmland patchwork (fills the valley floor) --------------------------
