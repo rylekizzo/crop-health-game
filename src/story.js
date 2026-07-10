@@ -145,13 +145,14 @@ const ALMOND_BEATS = [
   },
   {
     eyebrow: 'Satellite · valley',
-    objective: 'Scan the valley — switch bands (Thermal 3 / NDVI 4) to find the stressed blocks',
+    objective: 'Report the worst blocks — switch to NDVI (4) and click 5 low-NDVI plots',
     story:
-      'Every rectangle is an almond block, hundreds of acres each. Switch spectral bands to read ' +
-      'them all at once: Thermal picks out the hot, water-short blocks; NDVI shows low vigor. ' +
-      'Drag to pan across the valley and see which plots need attention.',
-    hint: 'Drag to pan. Press 3 (Thermal) or 4 (NDVI) — the water-stressed blocks stand out from the healthy green ones.',
-    done: (s) => s.scale === 'regional' && (s.band === 'thermal' || s.band === 'ndvi' || s.band === 'ndre'),
+      'Every rectangle is an almond block, hundreds of acres each. Switch to NDVI to read them all ' +
+      'at once — the low-vigor, water-short blocks glow red against the healthy green. Click the five ' +
+      'worst ones to flag them for the grower to send a crew to first.',
+    hint: 'Press 4 for NDVI, drag to pan. Click the reddest (lowest-NDVI) blocks — each click flags one. Find five.',
+    meter: 'count',
+    done: (s) => (s.flaggedLow || 0) >= 5,
   },
 ];
 
@@ -351,6 +352,18 @@ export class Mission {
     const kind = beat && beat.meter;
     if (!kind) { this.elMeter.style.display = 'none'; return; }
     this.elMeter.style.display = 'block';
+
+    if (kind === 'count') {
+      const target = this.state.flagTarget || 5;
+      const got = Math.min(target, this.state.flaggedLow || 0);
+      this.elMeterFill.style.width = ((got / target) * 100).toFixed(0) + '%';
+      this.elMeterFill.style.background = '#ff3b5c';
+      this.elMeterThresh.style.display = 'none';
+      this.elMeterLabel.textContent = got >= target
+        ? `Flagged ${got} / ${target} low-NDVI blocks ✓`
+        : `Flagged ${got} / ${target} low-NDVI blocks`;
+      return;
+    }
 
     if (kind === 'coverage') {
       const c = Math.min(1, this.state.coverage || 0);

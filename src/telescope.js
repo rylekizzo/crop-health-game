@@ -20,10 +20,16 @@ export class Telescope {
 
     this.bandId = 'rgb';
     this._active = false;
-    this.mouse = { down: false, lx: 0, ly: 0 };
+    this.mouse = { down: false, lx: 0, ly: 0, downX: 0, downY: 0, moved: false };
     this.scale = 1;
     this.panX = 0;
     this.panY = 0;
+
+    // Click-to-flag objective: the grower wants the worst (low-NDVI) blocks
+    // reported. Clicking a low-NDVI parcel flags it; onFlag reports the count.
+    this.LOW = 0.30;   // health/NDVI below this counts as a "low" block
+    this.flagged = new Set(); // flagged plot objects
+    this.onFlag = null;       // (count) => void
 
     // Fields: split each ~section into a few parcels of varying size.
     this.SEC = 150;
@@ -51,11 +57,22 @@ export class Telescope {
     }
 
     this._onMove = this._handleMove.bind(this);
-    this._onDown = (e) => { this.mouse.down = true; this.mouse.lx = e.clientX; this.mouse.ly = e.clientY; this.canvas.style.cursor = 'grabbing'; };
-    this._onUp = () => { this.mouse.down = false; this.canvas.style.cursor = 'grab'; };
+    this._onDown = (e) => {
+      this.mouse.down = true; this.mouse.moved = false;
+      this.mouse.lx = e.clientX; this.mouse.ly = e.clientY;
+      this.mouse.downX = e.clientX; this.mouse.downY = e.clientY;
+      this.canvas.style.cursor = 'grabbing';
+    };
+    this._onUp = (e) => {
+      if (this.mouse.down && !this.mouse.moved) this._handleClick(e); // a click, not a pan
+      this.mouse.down = false; this.canvas.style.cursor = 'grab';
+    };
   }
 
   setBand(id) { this.bandId = id; if (this._active) this._draw(); }
+
+  /** Clear all flags (fresh start of the almond level). */
+  resetFlags() { this.flagged.clear(); if (this._active) this._draw(); }
 
   setActive(on) {
     this._active = on;
@@ -102,8 +119,34 @@ export class Telescope {
     this.panX += e.clientX - this.mouse.lx;
     this.panY += e.clientY - this.mouse.ly;
     this.mouse.lx = e.clientX; this.mouse.ly = e.clientY;
+    // Past a few pixels it's a drag (pan), not a click.
+    if (Math.abs(e.clientX - this.mouse.downX) + Math.abs(e.clientY - this.mouse.downY) > 5) this.mouse.moved = true;
     this._clamp();
     this._draw();
+  }
+
+  _plotAt(clientX, clientY) {
+    const wx = (clientX - this.panX) / this.scale;
+    const wy = (clientY - this.panY) / this.scale;
+    for (const p of this.plots) {
+      if (p.noData) continue;
+      if (wx >= p.x && wx < p.x + p.w && wy >= p.y && wy < p.y + p.h) return p;
+    }
+    return null;
+  }
+
+  _handleClick(e) {
+    // Only inside the scope circle (the vignette rim isn't the map).
+    const cx = this._W / 2, cy = this._H / 2;
+    const r = Math.min(this._W, this._H) * 0.44;
+    const dx = e.clientX - cx, dy = e.clientY - cy;
+    if (dx * dx + dy * dy > r * r) return;
+
+    const p = this._plotAt(e.clientX, e.clientY);
+    if (!p || p.health >= this.LOW || this.flagged.has(p)) return; // only unflagged low-NDVI blocks
+    this.flagged.add(p);
+    this._draw();
+    if (this.onFlag) this.onFlag(this.flagged.size);
   }
 
   _draw() {
@@ -127,6 +170,22 @@ export class Telescope {
         ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
       }
     }
+
+    // Flagged low-NDVI blocks: a bright ring + number over each.
+    let n = 0;
+    for (const p of this.flagged) {
+      n++;
+      const mx = (p.x + p.w / 2) * s + this.panX, my = (p.y + p.h / 2) * s + this.panY;
+      const rad = Math.max(8, Math.min(p.w, p.h) * s * 0.4);
+      ctx.beginPath(); ctx.arc(mx, my, rad, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,60,90,0.28)'; ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = '#ff3b5c'; ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 12px ui-monospace, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(n), mx, my + 0.5);
+    }
+    ctx.textBaseline = 'alphabetic';
 
     this._drawScope(ctx);
   }
@@ -166,7 +225,7 @@ export class Telescope {
     ctx.fillStyle = 'rgba(210,225,210,0.6)';
     ctx.font = '600 13px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Central Valley · drag to pan · 1–6 change band', cx, cy + r + 26);
+    ctx.fillText(`Central Valley · click low-NDVI blocks to flag (${this.flagged.size}) · drag to pan · 1–6 band`, cx, cy + r + 26);
     ctx.textAlign = 'left';
   }
 }

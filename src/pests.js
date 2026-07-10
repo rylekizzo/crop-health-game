@@ -126,16 +126,27 @@ export function buildPests(basePos, health, bounds) {
   ov.instanceMatrix.needsUpdate = true;
   group.add(ov);
 
-  // --- falling ladybug drop particles (exaggerated, so the release reads clearly) ---
-  const DROP_N = 90;
-  const drop = new THREE.InstancedMesh(new THREE.SphereGeometry(0.28, 8, 6), new THREE.MeshStandardMaterial({ color: 0xe23b2e, roughness: 0.5 }), DROP_N);
+  // --- falling ladybug drops: a wide, dense cloud of small red & black specks
+  // (like real released ladybugs) so it reads from any camera angle, not just
+  // when looking straight down. ---
+  const DROP_N = 260;
+  const drop = new THREE.InstancedMesh(
+    new THREE.SphereGeometry(0.07, 6, 5),
+    new THREE.MeshStandardMaterial({ roughness: 0.5 }),
+    DROP_N
+  );
   drop.count = DROP_N;
   drop.castShadow = false;
-  for (let i = 0; i < DROP_N; i++) { d.position.set(0, -999, 0); d.scale.setScalar(0); d.updateMatrix(); drop.setMatrixAt(i, d.matrix); }
+  const cRed = new THREE.Color(0xd83a2e), cBlk = new THREE.Color(0x171310);
+  for (let i = 0; i < DROP_N; i++) {
+    d.position.set(0, -999, 0); d.scale.setScalar(0); d.updateMatrix(); drop.setMatrixAt(i, d.matrix);
+    drop.setColorAt(i, Math.random() < 0.62 ? cRed : cBlk); // mostly red bodies, some black
+  }
   drop.instanceMatrix.needsUpdate = true;
+  drop.instanceColor.needsUpdate = true;
   group.add(drop);
   const ds = [];
-  for (let i = 0; i < DROP_N; i++) ds.push({ active: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, spin: 2 + Math.random() * 5 });
+  for (let i = 0; i < DROP_N; i++) ds.push({ active: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, spin: 2 + Math.random() * 5, sc: 0.7 + Math.random() * 0.8 });
   let dropCursor = 0, dropAccum = 0;
 
   const treated = new Uint8Array(Math.max(1, cells.length));
@@ -177,30 +188,32 @@ export function buildPests(basePos, health, bounds) {
       for (let i = 0; i < DROP_N; i++) {
         const s = ds[i];
         if (!s.active) continue;
-        s.vy -= 9 * dt;
+        s.vy -= 5.5 * dt; // gentle fall so the cloud lingers in view
         s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
-        if (s.y <= 0.22) { s.active = false; d.position.set(0, -999, 0); d.scale.setScalar(0); }
-        else { d.position.set(s.x, s.y, s.z); d.rotation.set(time * s.spin, time * s.spin * 0.7, 0); d.scale.setScalar(1); }
+        if (s.y <= 0.2) { s.active = false; d.position.set(0, -999, 0); d.scale.setScalar(0); }
+        else { d.position.set(s.x, s.y, s.z); d.rotation.set(time * s.spin, time * s.spin * 0.7, 0); d.scale.setScalar(s.sc); }
         d.updateMatrix();
         drop.setMatrixAt(i, d.matrix);
         anyDrop = true;
       }
       if (anyDrop) drop.instanceMatrix.needsUpdate = true;
     },
-    /** Stream falling ladybugs from (x,y,z) while the release button is held. */
+    /** Stream a wide cloud of falling ladybugs from (x,y,z) while released. */
     emit(x, y, z, dt) {
       dropAccum += dt;
-      while (dropAccum >= 0.04) {
-        dropAccum -= 0.04;
-        const s = ds[dropCursor];
-        dropCursor = (dropCursor + 1) % DROP_N;
-        s.active = true;
-        s.x = x + (Math.random() - 0.5) * 1.6;
-        s.y = y - 0.4;
-        s.z = z + (Math.random() - 0.5) * 1.6;
-        s.vx = (Math.random() - 0.5) * 1.0;
-        s.vy = -2.0 - Math.random() * 1.5;
-        s.vz = (Math.random() - 0.5) * 1.0;
+      while (dropAccum >= 0.016) {
+        dropAccum -= 0.016;
+        for (let q = 0; q < 3; q++) { // several specks per tick → a dense cloud
+          const s = ds[dropCursor];
+          dropCursor = (dropCursor + 1) % DROP_N;
+          s.active = true;
+          s.x = x + (Math.random() - 0.5) * 5.5;   // wide horizontal spread
+          s.y = y - 0.1 - Math.random() * 0.6;     // start just under the drone, in view
+          s.z = z + (Math.random() - 0.5) * 5.5;
+          s.vx = (Math.random() - 0.5) * 1.8;
+          s.vy = -1.0 - Math.random() * 1.2;
+          s.vz = (Math.random() - 0.5) * 1.8;
+        }
       }
     },
     /** Treat infested cells within `radius` of (x,z); returns coverage 0..1. */

@@ -233,9 +233,13 @@ const mission = new Mission();
 // True once the whole campaign is finished: unlocks free roam (F to change
 // field, Tab to board the drone from anywhere).
 let gameComplete = false;
+// The regional satellite (V) unlocks when the almond level begins, and stays on.
+let vUnlocked = false;
 
 // National level: hovering any state satisfies the "read the map" beat.
 satellite.onHover = () => mission.sync({ satHovered: true });
+// Almond regional level: clicking a low-NDVI block flags it for the grower.
+telescope.onFlag = (count) => mission.sync({ flaggedLow: count });
 
 // Enter was pressed on a completion box → advance to the next level (or finish).
 // Pointer stays locked throughout, so the player keeps moving while they read.
@@ -243,6 +247,7 @@ mission.onLevelComplete = (next) => {
   if (next === 'strawberry' || next === 'almond') {
     setScale('proximal');
     goToCrop(CROP_IDS.indexOf(next));
+    if (next === 'almond') { vUnlocked = true; telescope.resetFlags(); } // regional view unlocks here
     mission.startLevel(next);
   } else if (next === 'usa') {
     // Zoom out to the orbital globe: NDVI-only, and the USDA extremes quiz.
@@ -529,10 +534,10 @@ document.addEventListener('keydown', (e) => {
     mission.proceed(); // advance a level-completion box
     return;
   }
-  // V toggles the regional satellite (telescope) view.
+  // V toggles the regional satellite (telescope) view — unlocked at the orchard.
   if (e.code === 'KeyV' && !e.repeat) {
     if (scale === 'regional') setScale(regionalReturn);
-    else if (scale === 'drone' || scale === 'proximal') { regionalReturn = scale; setScale('regional'); }
+    else if (vUnlocked && (scale === 'drone' || scale === 'proximal')) { regionalReturn = scale; setScale('regional'); }
     return;
   }
   // Band switching in the aerial/regional views. The national satellite view is
