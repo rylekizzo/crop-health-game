@@ -58,7 +58,9 @@ function cornHealth(x, z) {
   const across = Math.exp(-((x + 5) * (x + 5)) / (2 * 1.1 * 1.1));  // a couple of rows wide, at x ≈ -5
   const along = Math.exp(-((z - 4) * (z - 4)) / (2 * 15 * 15));     // gradient down the strip
   const mottle = 0.72 + 0.28 * smoothNoise(x * 2.6, z * 1.3);       // patchiness within the strip
-  h -= 0.66 * across * along * mottle;
+  // Deep enough that the core bottoms out (health ~0.05–0.14) → solid red in NDVI,
+  // while the width and ends still gradient out through orange to green.
+  h -= 1.0 * across * along * mottle;
 
   return clamp(h, 0.05, 1);
 }

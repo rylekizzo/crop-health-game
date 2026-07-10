@@ -214,6 +214,10 @@
   .bigimg{max-width:min(92vw,1300px);max-height:62vh;border-radius:12px;
     box-shadow:0 18px 50px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.12);background:#fff}
 
+  .urlpill{display:inline-block;background:var(--accent);color:#08120a;font-weight:800;
+    text-decoration:none;padding:.8rem 2rem;border-radius:12px;margin-top:1.8rem;
+    font-size:clamp(1.2rem,3vw,2rem);font-family:ui-monospace,monospace;letter-spacing:.02em;
+    box-shadow:0 10px 30px rgba(124,194,66,.3)}
   .pill{display:inline-block;background:var(--accent);color:#0c140c;font-weight:800;
     padding:.7rem 1.8rem;border-radius:999px;margin-top:2.4rem;font-size:clamp(1rem,2.2vw,1.4rem)}
 
@@ -475,7 +479,7 @@
   </section>
 
   <!-- 12 — OUR FOCUS: SENSING CROP HEALTH -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">Let's get specific</div>
     <h2>A case study in AgTech:<br><span class="accent">Sensing Crop Health.</span></h2>
     <p class="sub wide" style="max-width:42ch">Let's dive into one concrete example. We'll focus on a single question — <em>how healthy is a crop, right now?</em> Answer it well and three of farming's hardest problems get easier:</p>
@@ -499,7 +503,7 @@
   </section>
 
   <!-- 13 — YIELD -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">What farming is really after</div>
     <h2>It all comes down to <span class="accent">yield.</span></h2>
     <div class="yieldcmp">
@@ -510,7 +514,7 @@
   </section>
 
   <!-- 14 — PHOTOSYNTHESIS -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">Where yield comes from</div>
     <h2>Plants build food from <span class="accent">light.</span></h2>
     <div class="pschem">
@@ -529,14 +533,14 @@
   </section>
 
   <!-- 15 — THE PROBLEM -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">The problem</div>
     <h2>Plants can't tell you<br>when they're sick.</h2>
     <p class="sub wide">Photosynthesis can be failing inside a plant long before you'd ever see it. A field holds <span class="accent">millions of plants</span> across hundreds of acres — by the time leaves look bad to your eye, it's often too late. So how do we spot stress <em>early</em>, across a whole field?</p>
   </section>
 
   <!-- 16 — WHAT IS LIGHT -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">First — what is light?</div>
     <h2>Light is energy that travels as a <span class="accent">wave.</span></h2>
     <div class="fig wave">
@@ -583,7 +587,7 @@
   </section>
 
   <!-- 17 — LIGHT IS ALSO PARTICLES -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">The other half of the story</div>
     <h2>Light is also a stream of <span class="accent">particles.</span></h2>
     <div class="photonband">
@@ -599,7 +603,7 @@
   </section>
 
   <!-- 18 — THE SPECTRUM GRAPH -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">The whole spectrum</div>
     <h2>Human sight is a <span class="accent">tiny slice</span> of it.</h2>
     <div class="fig">
@@ -669,7 +673,7 @@
   </section>
 
   <!-- 19 — LIGHT: CAMERAS SEE MORE -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">Cameras see the rest</div>
     <h2>The invisible bands<br>carry <span class="accent">real signals.</span></h2>
     <div class="compare">
@@ -688,7 +692,7 @@
   </section>
 
   <!-- 20 — BIG IDEA -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">The big idea</div>
     <h2>We measure crop health at <span class="accent">three scales.</span></h2>
     <div class="scales">
@@ -715,7 +719,7 @@
   </section>
 
   <!-- 21 — GROUND -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">Scale 1 · Ground</div>
     <h2>Take a plant's pulse.</h2>
     <div class="leafviz">
@@ -725,7 +729,7 @@
   </section>
 
   <!-- 22 — DRONE -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="two">
       <div class="drone">🚁</div>
       <div class="txt">
@@ -737,7 +741,7 @@
   </section>
 
   <!-- 23 — SATELLITE -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="two">
       <div class="stack">
         <div class="globe"><div class="orbit"><span class="sat">🛰️</span></div></div>
@@ -751,7 +755,7 @@
   </section>
 
   <!-- 24 — THE BANDS WE USE -->
-  <section class="slide">
+  <section class="slide cs">
     <div class="kicker">The bands we read</div>
     <h2>Each band shows a<br><span class="accent">different signal.</span></h2>
     <div class="bands">
@@ -763,7 +767,7 @@
   </section>
 
   <!-- 25 — NDVI -->
-  <section class="slide imgslide">
+  <section class="slide cs imgslide">
     <div class="kicker">The famous one</div>
     <h2 style="margin-bottom:.5rem">NDVI turns two colors into a <span class="accent">health map.</span></h2>
     <img src="ndvi.png" alt="A field in true color (left) and NDVI false color (right)" class="bigimg" />
@@ -771,38 +775,33 @@
     <div class="formula sm">NDVI = (<span class="nir">NIR</span> − <span class="red">Red</span>) / (<span class="nir">NIR</span> + <span class="red">Red</span>)</div>
   </section>
 
-  <!-- 26 — WHY IT MATTERS -->
-  <section class="slide">
+  <!-- 26 — MANY STRESSORS, ONE SIGNAL -->
+  <section class="slide cs">
+    <div class="kicker">Why one number is powerful</div>
+    <h2>Many stressors, <span class="accent">one signal.</span></h2>
+    <div class="scales">
+      <div class="scard"><div class="ic">💧</div><div class="nm">Water stress</div><div class="ds">Too little (or too much) water</div></div>
+      <div class="scard"><div class="ic">🧪</div><div class="nm">Nutrient deficiency</div><div class="ds">Missing nitrogen and other nutrients</div></div>
+      <div class="scard"><div class="ic">🐛</div><div class="nm">Pests &amp; disease</div><div class="ds">Insects, fungus, infection</div></div>
+      <div class="scard"><div class="ic">🌱</div><div class="nm">Weed competition</div><div class="ds">Weeds stealing light, water &amp; nutrients</div></div>
+    </div>
+    <p class="sub wide">Every one of these slows a plant's photosynthesis — so every one shows up as a dip in <span class="accent">NDVI.</span> A single number flags that something is wrong, often before you can see it. Figuring out <em>which</em> stress it is comes next.</p>
+  </section>
+
+  <!-- 27 — WHY IT MATTERS -->
+  <section class="slide cs">
     <div class="kicker">Why it matters</div>
     <h2>Less water. More food.<br><span class="accent">Real careers.</span></h2>
     <p class="sub wide">Catching stress early means farmers grow more food using less water, fuel, and chemicals. The people who build this mix <span class="accent">biology, data, drones, and code</span> — and they're hiring.</p>
   </section>
 
-  <!-- 27 — CROPS -->
-  <section class="slide">
-    <div class="kicker">In the game</div>
-    <h2>Three crops, three worlds.</h2>
-    <div class="crops">
-      <div class="crop"><div class="glyph">🌽</div><div class="cn">Corn</div><div class="cl">Midwest fields</div></div>
-      <div class="crop"><div class="glyph">🍓</div><div class="cn">Strawberry</div><div class="cl">California beds</div></div>
-      <div class="crop"><div class="glyph">🌰</div><div class="cn">Almond</div><div class="cl">Orchard groves</div></div>
-    </div>
-    <p class="sub wide">Walk the rows, fly the drone, and zoom to orbit — each crop hides stressed plants for you to find.</p>
-  </section>
-
-  <!-- 28 — PLAY -->
-  <section class="slide">
+  <!-- 28 — CALL TO ACTION -->
+  <section class="slide cs">
     <div class="scene"><div class="sky"></div><div class="rows"></div></div>
     <div class="kicker">Your turn</div>
-    <h1>Go find the<br><span class="accent">sick plants.</span></h1>
-    <div class="keys">
-      <kbd>W A S D</kbd><span class="d">move around the field</span>
-      <kbd>Tab</kbd><span class="d">switch scale — ground / drone / satellite</span>
-      <kbd>1–6</kbd><span class="d">switch the camera's light band</span>
-      <kbd>E</kbd><span class="d">clamp a leaf & take a reading</span>
-      <kbd>F</kbd><span class="d">change the crop</span>
-    </div>
-    <div class="pill">Click the game to begin →</div>
+    <h1>The fields need<br><span class="accent">your help.</span></h1>
+    <p class="sub wide">Time to put it to work. Head to the game and see what you can find.</p>
+    <a class="urlpill" href="https://shorturl.at/c9xtH" target="_blank" rel="noopener">shorturl.at/c9xtH</a>
   </section>
 
 </div>
