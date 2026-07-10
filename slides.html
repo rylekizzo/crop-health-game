@@ -86,6 +86,7 @@
     background:rgba(255,255,255,.05);border:1px solid rgba(124,194,66,.3);border-radius:14px;
     padding:1rem 1.6rem;display:inline-block}
   .formula .nir{color:var(--nir)} .formula .red{color:#ff6b6b}
+  .formula.sm{font-size:clamp(.8rem,1.7vw,1.15rem);padding:.45rem 1rem;margin-top:1rem;opacity:.8}
 
   /* controls grid (final slide) */
   .keys{display:grid;grid-template-columns:auto 1fr;gap:.6rem 1.4rem;text-align:left;
@@ -718,13 +719,12 @@
   </section>
 
   <!-- 24 — NDVI -->
-  <section class="slide">
+  <section class="slide imgslide">
     <div class="kicker">The famous one</div>
-    <h2>NDVI — a health score<br>from <span class="accent">two colors.</span></h2>
-    <div class="formula">
-      NDVI = (<span class="nir">NIR</span> − <span class="red">Red</span>) / (<span class="nir">NIR</span> + <span class="red">Red</span>)
-    </div>
-    <p class="sub wide">Healthy plants soak up red light and blast back infrared. Combine the two and you get one number: <span class="accent">green = thriving, red = struggling.</span> It's how scientists watch the whole planet's vegetation.</p>
+    <h2 style="margin-bottom:.5rem">NDVI turns two colors into a <span class="accent">health map.</span></h2>
+    <img src="ndvi.png" alt="A field in true color (left) and NDVI false color (right)" class="bigimg" />
+    <p class="sub wide" style="margin-top:.7rem">Same field, same moment. <span class="accent">Left:</span> what your eye sees — hard to judge. <span class="accent">Right:</span> NDVI, where <span style="color:#4fbf4a">green = thriving</span> and <span style="color:#e2552f">red = struggling.</span></p>
+    <div class="formula sm">NDVI = (<span class="nir">NIR</span> − <span class="red">Red</span>) / (<span class="nir">NIR</span> + <span class="red">Red</span>)</div>
   </section>
 
   <!-- 25 — WHY IT MATTERS -->

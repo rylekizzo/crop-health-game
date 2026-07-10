@@ -495,15 +495,16 @@ function makeTractorUpdater(tractor, smoke) {
     tractor.position.set(X, 0, z);
     tractor.rotation.y = heading;
 
-    // Exhaust smoke: puff periodically from the stack's world position.
+    // Exhaust smoke: emit a pulse (burst) of puffs from the stack's world position.
     smoke.update(dt);
     puffTimer -= dt;
     if (puffTimer <= 0) {
-      puffTimer = 0.42 + Math.random() * 0.28;
+      puffTimer = 0.85 + Math.random() * 0.5; // time between chugs
       tractor.updateMatrixWorld();
       exWorld.copy(exLocal);
       tractor.localToWorld(exWorld);
-      smoke.spawn(exWorld.x, exWorld.y, exWorld.z);
+      const n = 3 + Math.floor(Math.random() * 2); // 3–4 puffs per pulse
+      for (let i = 0; i < n; i++) smoke.spawn(exWorld.x, exWorld.y, exWorld.z);
     }
   };
 }
@@ -528,12 +529,12 @@ function makeSmokeTexture() {
 function makeSmoke() {
   const tex = makeSmokeTexture();
   const group = new THREE.Group();
-  const N = 18;
+  const N = 32;
   const puffs = [];
   for (let i = 0; i < N; i++) {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x4a4946, transparent: true, opacity: 0, depthWrite: false }));
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xf4f4f2, transparent: true, opacity: 0, depthWrite: false }));
     sp.visible = false;
-    sp.userData = { active: false, age: 0, life: 1, vx: 0, vy: 0, vz: 0, s0: 0.4 };
+    sp.userData = { active: false, age: 0, life: 1, vx: 0, vy: 0, vz: 0, s0: 1 };
     group.add(sp);
     puffs.push(sp);
   }
@@ -544,15 +545,15 @@ function makeSmoke() {
     spawn(x, y, z) {
       const sp = puffs[cursor];
       cursor = (cursor + 1) % N;
-      sp.position.set(x + (Math.random() - 0.5) * 0.06, y, z + (Math.random() - 0.5) * 0.06);
+      sp.position.set(x + (Math.random() - 0.5) * 0.5, y + Math.random() * 0.2, z + (Math.random() - 0.5) * 0.5);
       const u = sp.userData;
       u.active = true;
       u.age = 0;
-      u.life = 2.2 + Math.random() * 0.9;
-      u.vy = 0.8 + Math.random() * 0.4;
-      u.vx = (Math.random() - 0.5) * 0.25;
-      u.vz = (Math.random() - 0.5) * 0.25;
-      u.s0 = 0.35 + Math.random() * 0.15;
+      u.life = 2.4 + Math.random() * 1.1;
+      u.vy = 1.2 + Math.random() * 0.6;
+      u.vx = (Math.random() - 0.5) * 0.6;
+      u.vz = (Math.random() - 0.5) * 0.6;
+      u.s0 = 0.9 + Math.random() * 0.6; // big, cloudy start
       sp.visible = true;
     },
     update(dt) {
@@ -565,10 +566,9 @@ function makeSmoke() {
         sp.position.x += u.vx * dt;
         sp.position.y += u.vy * dt;
         sp.position.z += u.vz * dt;
-        u.vy *= 1 - dt * 0.3; // buoyant rise eases off
-        const scale = u.s0 + t * 1.7;
-        sp.scale.set(scale, scale, 1);
-        sp.material.opacity = 0.55 * Math.min(1, t * 6) * (1 - t); // quick in, slow out
+        u.vy *= 1 - dt * 0.25; // buoyant rise eases off
+        sp.scale.setScalar(u.s0 + t * 5.0); // expand into a big exaggerated puff
+        sp.material.opacity = 0.92 * Math.min(1, t * 8) * (1 - t * t); // fast in, fade out at the end
       }
     },
   };
