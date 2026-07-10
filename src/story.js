@@ -17,8 +17,8 @@ const CORN_BEATS = [
     story:
       'A grower says plants in this field are struggling, but not everywhere. Before you can ' +
       'spot the problem you need to know what healthy looks like. Your LI-600 porometer clamps a ' +
-      'leaf and measures how it is working — photosynthesis (ETR), water loss (gsw), and ' +
-      'photosystem efficiency. Read a good green plant near the edge first.',
+      'leaf and reads how it is working — photosynthesis (food it makes), transpiration (water it ' +
+      'uses), and leaf temperature. Read a good green plant near the edge first.',
     hint: 'Move with W A S D, look with the mouse. Aim at a green plant until the crosshair turns green, then press E.',
     done: (s) => s.health != null && s.health > 0.6,
   },
@@ -45,12 +45,13 @@ const CORN_BEATS = [
   },
   {
     eyebrow: 'Drone · aerial',
-    objective: 'Map it — switch to NDVI (press 4) and spot the streak from the air',
+    objective: 'Explore the sensor bands — cycle 1–6 and see what each one reveals',
     story:
-      'From the air you cover the whole field at once. NDVI turns invisible stress into a map: ' +
-      'green = vigorous, red = struggling. The rows you measured now show up as a single red streak — ' +
-      'its true shape, which no single leaf could tell you.',
-    hint: 'Press 4 for NDVI. Fly out over the field and find the red streak.',
+      'From the air you cover the whole field at once, and your drone carries several sensors. ' +
+      'Press 1 through 6 to switch bands — each sees light a different way, and the panel on the ' +
+      'right explains what it senses. Watch how the trouble hides in some and pops out in others; ' +
+      'land on NDVI to map the streak.',
+    hint: 'Press 1–6 to flip through the bands and read the note for each. NDVI (4) is the classic crop-health map — the streak shows up red.',
     done: (s) => s.scale === 'drone' && isVigorIndex(s.band),
   },
 ];

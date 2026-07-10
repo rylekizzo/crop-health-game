@@ -85,7 +85,7 @@ export const BANDS = [
     id: 'rgb',
     key: '1',
     label: 'RGB · true color',
-    note: 'What the eye sees. Stress shows as yellowing (chlorosis).',
+    note: 'Plain color, like your eyes see. Sick plants turn yellow.',
     color: (health) => lerpStops(TRUECOLOR, health),
     // legend: low→high health
     legend: { lo: 'stressed', hi: 'healthy', ramp: (t) => lerpStops(TRUECOLOR, t) },
@@ -95,7 +95,7 @@ export const BANDS = [
     id: 'nir',
     key: '2',
     label: 'NIR · near-infrared',
-    note: 'Healthy leaf structure reflects NIR strongly — bright = vigorous.',
+    note: 'Invisible infrared light. Healthy leaves bounce back a lot of it, so bright = vigorous.',
     color: (health) => {
       const t = (nirReflectance(health) - 0.18) / 0.67; // normalize to 0..1
       return lerpStops(
@@ -126,7 +126,7 @@ export const BANDS = [
     id: 'thermal',
     key: '3',
     label: 'Thermal · canopy °C',
-    note: 'Stressed plants close stomata and heat up. Hot = water-stressed.',
+    note: 'Heat, like a night-vision camera. Thirsty plants can\'t sweat to cool off, so hot = water-stressed.',
     color: (health) => {
       const t = (canopyTempC(health) - 22) / 10; // 22..32 °C → 0..1
       return lerpStops(INFERNO, t);
@@ -144,7 +144,7 @@ export const BANDS = [
     id: 'ndvi',
     key: '4',
     label: 'NDVI · veg index',
-    note: 'NDVI = (NIR − Red)/(NIR + Red). Greenness & biomass; saturates in dense canopy.',
+    note: 'Mixes infrared and red light into a greenness score. The go-to crop-health map: green = healthy, red = struggling.',
     color: (health) => lerpStops(RDYLGN, ndvi(health) / 0.9),
     legend: { lo: '0.0', hi: '0.9', unit: 'NDVI', ramp: (t) => lerpStops(RDYLGN, t) },
     spectral: { regions: ['red', 'nir'], formula: 'NDVI = (NIR − Red) / (NIR + Red)' },
@@ -153,7 +153,7 @@ export const BANDS = [
     id: 'ndre',
     key: '5',
     label: 'NDRE · veg index',
-    note: 'NDRE = (NIR − RedEdge)/(NIR + RedEdge). Probes deeper canopy; better late-season.',
+    note: 'Like NDVI, but sees deeper into thick, leafy plants — handy later in the season.',
     color: (health) => lerpStops(RDYLGN, (ndre(health) - 0.05) / 0.47),
     legend: { lo: '0.05', hi: '0.52', unit: 'NDRE', ramp: (t) => lerpStops(RDYLGN, t) },
     spectral: { regions: ['rededge', 'nir'], formula: 'NDRE = (NIR − RedEdge) / (NIR + RedEdge)' },
@@ -162,7 +162,7 @@ export const BANDS = [
     id: 'sif',
     key: '6',
     label: 'SIF · fluorescence',
-    note: 'Solar-induced fluorescence: light re-emitted by chlorophyll. The most direct space-based proxy for photosynthesis (GPP).',
+    note: 'A faint glow leaves give off while making food. The closest thing to watching photosynthesis from space.',
     color: (health) => lerpStops(VIRIDIS, (sif(health) - 0.1) / 1.7),
     legend: { lo: '0', hi: '2.0', unit: 'mW·m⁻²·nm⁻¹·sr⁻¹', ramp: (t) => lerpStops(VIRIDIS, t) },
     // SIF is emitted (not reflected) — narrow peaks at 685 & 740 nm.

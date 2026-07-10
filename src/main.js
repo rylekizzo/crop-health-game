@@ -452,10 +452,9 @@ function goToCrop(nextIndex) {
 }
 
 // --- Result panel (proximal) ---
-const elETR = document.getElementById('r-etr');
-const elGsw = document.getElementById('r-gsw');
-const elPhi = document.getElementById('r-phi');
-const elFvfm = document.getElementById('r-fvfm');
+const elPhoto = document.getElementById('r-photo');
+const elTransp = document.getElementById('r-transp');
+const elTemp = document.getElementById('r-temp');
 const elTag = document.getElementById('r-tag');
 
 // Pest-inspection panel (strawberry).
@@ -465,10 +464,9 @@ const iCount = document.getElementById('i-count');
 const iTag = document.getElementById('i-tag');
 
 li600.onResult = (v) => {
-  elETR.textContent = v.etr.toFixed(0);
-  elGsw.textContent = v.gsw.toFixed(3);
-  elPhi.textContent = v.phiPSII.toFixed(3);
-  elFvfm.textContent = v.fvfmPrime.toFixed(3);
+  elPhoto.textContent = v.photosynthesis.toFixed(0);
+  elTransp.textContent = v.transpiration.toFixed(1);
+  elTemp.textContent = v.leafTempC.toFixed(1);
   const h = v.health;
   let label, color;
   if (h > 0.7) { label = 'Healthy'; color = '#8bc53f'; }

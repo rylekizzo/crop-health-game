@@ -134,13 +134,11 @@ export class LI600 {
     this.state = 'measuring';
     this.t = 0;
     this._truth = truth;
-    // Start the live gsw somewhere off, converging toward the true reading.
+    // Start the live values off, converging toward the true reading.
     this._live = {
-      gsw: truth.gsw * (0.3 + Math.random() * 0.5),
-      phiPSII: 0,
-      etr: 0,
-      fvfmPrime: 0,
-      parI: truth.parI,
+      photosynthesis: 0,
+      transpiration: truth.transpiration * (0.3 + Math.random() * 0.5),
+      leafTempC: truth.leafTempC + (Math.random() - 0.5) * 1.5,
     };
   }
 
@@ -164,16 +162,12 @@ export class LI600 {
       this.t += dt;
       const a = Math.min(this.t / MEASURE_TIME, 1);
 
-      // gsw stabilizes with an exponential approach + shrinking jitter.
+      // Readings stabilize with an exponential approach + shrinking jitter.
       const ease = 1 - Math.exp(-3.2 * a);
       const noise = (Math.random() - 0.5) * 0.06 * (1 - a);
-      this._live.gsw = this._truth.gsw * (ease + noise) + this._truth.gsw * 0.001;
-
-      // Fluorescence is revealed by the saturating flash in the last ~25%.
-      const fl = Math.max(0, (a - 0.75) / 0.25);
-      this._live.phiPSII = this._truth.phiPSII * fl;
-      this._live.etr = this._truth.etr * fl;
-      this._live.fvfmPrime = this._truth.fvfmPrime * fl;
+      this._live.transpiration = this._truth.transpiration * (ease + noise);
+      this._live.photosynthesis = this._truth.photosynthesis * (ease + noise);
+      this._live.leafTempC = this._truth.leafTempC + (Math.random() - 0.5) * 1.2 * (1 - a);
 
       this._drawScreen(a);
 
@@ -247,10 +241,9 @@ export class LI600 {
       ctx.fillText('to clamp & measure.', 12, 110);
     } else {
       const v = this.state === 'result' ? this.result : this._live;
-      line(60, 'gsw', v.gsw.toFixed(3), 'mol m-2 s-1');
-      line(84, 'PhiPS2', v.phiPSII.toFixed(3), '');
-      line(108, 'ETR', v.etr.toFixed(0), 'umol m-2 s-1');
-      line(132, 'PARi', Math.round(v.parI).toString(), 'umol');
+      line(64, 'Photo', v.photosynthesis.toFixed(0), 'umol CO2');
+      line(92, 'Transp', v.transpiration.toFixed(1), 'mmol H2O');
+      line(120, 'Leaf T', v.leafTempC.toFixed(1), 'C');
 
       // status / progress bar
       ctx.fillStyle = '#1d3a24';

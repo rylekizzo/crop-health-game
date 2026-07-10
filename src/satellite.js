@@ -225,6 +225,10 @@ export class SatelliteView {
   get altitudeKm() { return Math.round((this.camera.position.length() - 1) * 6371); }
 
   update(dt) {
+    // Slow the drag-to-orbit as you zoom in, so close-up panning is controllable.
+    const { minDistance: lo, maxDistance: hi } = this.controls;
+    const t = THREE.MathUtils.clamp((this.camera.position.length() - lo) / (hi - lo), 0, 1);
+    this.controls.rotateSpeed = 0.1 + 0.5 * t; // ~0.1 zoomed in → ~0.6 zoomed out
     this.controls.update();
     if (this._mouse.inside) this._pick();
   }

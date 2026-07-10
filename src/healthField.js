@@ -89,7 +89,11 @@ export function truePhysiology(health) {
   const phiPSII = 0.05 + 0.45 * health; // operating efficiency of PSII
   const etr = phiPSII * PAR_AMBIENT * 0.84 * 0.5; // electron transport rate, µmol m⁻² s⁻¹
   const fvfmPrime = 0.45 + 0.35 * health; // light-adapted max efficiency
-  return { gsw, phiPSII, etr, fvfmPrime, parI: PAR_AMBIENT, health };
+  // Student-friendly quantities shown by the porometer:
+  const photosynthesis = 3 + 37 * health;   // net CO₂ uptake, µmol CO₂ m⁻² s⁻¹
+  const transpiration = 0.5 + 6.5 * health;  // water vapor loss, mmol H₂O m⁻² s⁻¹
+  const leafTempC = canopyTempC(health);     // leaf temperature, °C
+  return { gsw, phiPSII, etr, fvfmPrime, parI: PAR_AMBIENT, health, photosynthesis, transpiration, leafTempC };
 }
 
 // --- Aerial-sensor proxies (drone scale) -----------------------------------
@@ -172,5 +176,8 @@ export function measurePhysiology(truth, rng = Math.random) {
   const phiPSII = clamp(truth.phiPSII + (rng() - 0.5) * 0.02, 0, 0.83);
   const etr = phiPSII * truth.parI * 0.84 * 0.5;
   const fvfmPrime = clamp(truth.fvfmPrime + (rng() - 0.5) * 0.01, 0, 0.83);
-  return { gsw, phiPSII, etr, fvfmPrime, parI: truth.parI, health: truth.health };
+  const photosynthesis = Math.max(0, truth.photosynthesis * jitter(0.04));
+  const transpiration = Math.max(0, truth.transpiration * jitter(0.05));
+  const leafTempC = truth.leafTempC + (rng() - 0.5) * 0.3;
+  return { gsw, phiPSII, etr, fvfmPrime, parI: truth.parI, health: truth.health, photosynthesis, transpiration, leafTempC };
 }
