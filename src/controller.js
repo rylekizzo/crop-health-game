@@ -86,7 +86,7 @@ export class Controller {
       this.object.position.set(0, EYE_HEIGHT, 31);
       this.object.rotation.set(-0.05, 0, 0, 'YXZ');
       this.onGround = true;
-      if (this.drone) this.drone.group.visible = false;
+      // The drone stays visible on the ground in walk mode; main.js parks it.
     } else {
       // Place the drone above the field; the camera chases it.
       if (this.drone) {

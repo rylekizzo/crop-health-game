@@ -46,6 +46,9 @@ env.renderer = renderer;
 
 let cropIndex = 0;
 let field, health, basePos, walkBound, flyBound;
+// Stress-meter bounds, recomputed per field: the worst plant's stress and the
+// "close to but below it" threshold the player must reach by measuring.
+let worstStress = 0.9, stressThreshold = 0.8, maxStressMeasured = 0;
 let scenery = buildScenery(scene, CROPS[CROP_IDS[cropIndex]].setting, env);
 if (scenery.walkBound != null) walkBound = scenery.walkBound;
 
@@ -65,6 +68,13 @@ function installField(cropId) {
   walkBound = Math.max(fb.width, fb.length) / 2 + 8;
   flyBound = Math.max(fb.width, fb.length) / 2 + 20;
   renderer.shadowMap.needsUpdate = true; // new geometry → refresh the frozen shadow map once
+
+  // Stress-meter bounds from this field's most-stressed plant.
+  let minH = 1;
+  for (let i = 0; i < health.length; i++) if (health[i] < minH) minH = health[i];
+  worstStress = 1 - minH;
+  stressThreshold = worstStress * 0.88; // reach close to, but not exactly, the worst
+  maxStressMeasured = 0;
 }
 installField(CROP_IDS[cropIndex]);
 
@@ -75,6 +85,25 @@ scene.add(controller.object);
 const drone = new Drone();
 scene.add(drone.group);
 controller.setDrone(drone);
+
+// The drone is a physical object: it sits landed on the ground a bit behind and
+// off-centre from the player's start. You must be near it to board it (Tab).
+const DRONE_HOME = new THREE.Vector3(6, 0.15, 35);
+const DRONE_NEAR = 5.0; // metres
+
+function landDrone() {
+  drone.group.visible = true;
+  drone.group.position.copy(DRONE_HOME);
+  drone.group.rotation.set(0, -2.2, 0);
+  drone.tilt.rotation.set(0, 0, 0);
+  drone.tilt.position.y = 0;
+}
+function nearDrone() {
+  const p = controller.object.position;
+  const dx = p.x - DRONE_HOME.x, dz = p.z - DRONE_HOME.z;
+  return dx * dx + dz * dz < DRONE_NEAR * DRONE_NEAR;
+}
+landDrone(); // start with it parked
 
 // --- Satellite (orbital scale) — its own scene/camera/controls ---
 const satellite = new SatelliteView(renderer);
@@ -242,6 +271,7 @@ function setScale(next) {
     li600.group.visible = true;
     bandId = 'rgb';
     setBand('rgb'); // ground view is always true color
+    landDrone(); // park the drone back on the ground
   } else {
     li600.group.visible = false;
     li600.release();
@@ -333,15 +363,24 @@ li600.onResult = (v) => {
   elTag.style.color = '#10240a';
   ring.material.color.set(color);
   readout.classList.add('show');
-  mission.sync({ measured: true, health: h });
+  maxStressMeasured = Math.max(maxStressMeasured, 1 - h);
+  mission.sync({
+    measured: true,
+    health: h,
+    maxStress: maxStressMeasured,
+    meterMax: worstStress,
+    meterThreshold: stressThreshold,
+  });
 };
 
 // --- Input ---
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Tab') {
     e.preventDefault();
-    const i = SCALE_ORDER.indexOf(scale);
-    setScale(SCALE_ORDER[(i + 1) % SCALE_ORDER.length]);
+    // Board the drone only when standing near it; Tab again lands & exits.
+    // (Satellite is reached another way — added later.)
+    if (scale === 'proximal' && nearDrone()) setScale('drone');
+    else if (scale === 'drone') setScale('proximal');
     return;
   }
   if (e.code === 'KeyF' && !e.repeat) {
@@ -418,10 +457,20 @@ function animate() {
   if (scale === 'proximal') {
     li600.update(dt);
     if (li600.state === 'idle') {
-      aimedInstance = controller.locked ? aimedPlant() : -1;
-      crosshair.classList.toggle('targeting', aimedInstance >= 0);
-      prompt.classList.toggle('show', aimedInstance >= 0);
-      if (measuredInstance < 0) setRing(aimedInstance, aimedInstance >= 0 ? '#ffffff' : null);
+      if (controller.locked && nearDrone()) {
+        // Standing by the drone: prompt to board it instead of measuring.
+        aimedInstance = -1;
+        crosshair.classList.remove('targeting');
+        prompt.innerHTML = '<kbd>Tab</kbd> board the drone';
+        prompt.classList.add('show');
+        if (measuredInstance < 0) setRing(-1);
+      } else {
+        aimedInstance = controller.locked ? aimedPlant() : -1;
+        crosshair.classList.toggle('targeting', aimedInstance >= 0);
+        if (aimedInstance >= 0) prompt.innerHTML = '<kbd>E</kbd> clamp leaf &amp; measure';
+        prompt.classList.toggle('show', aimedInstance >= 0);
+        if (measuredInstance < 0) setRing(aimedInstance, aimedInstance >= 0 ? '#ffffff' : null);
+      }
     } else {
       crosshair.classList.remove('targeting');
       prompt.classList.remove('show');

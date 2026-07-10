@@ -100,6 +100,37 @@
       }
       #mission .m-dot.done { background: var(--accent); }
       #mission .m-dot.active { background: rgba(124, 194, 66, 0.55); }
+      #mission .m-meter { display: none; margin-top: 10px; }
+      #mission .m-meter-track {
+        position: relative;
+        height: 13px;
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        overflow: visible;
+      }
+      #mission .m-meter-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 6px;
+        background: #7bbf3a;
+        transition: width 0.3s ease, background 0.3s ease;
+      }
+      #mission .m-meter-thresh {
+        position: absolute;
+        top: -3px;
+        bottom: -3px;
+        width: 2px;
+        left: 100%;
+        background: #ffffff;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+      }
+      #mission .m-meter-label {
+        font-size: 11px;
+        opacity: 0.85;
+        margin-top: 5px;
+        font-family: ui-monospace, monospace;
+      }
       #mission .m-hint {
         margin-top: 8px;
         padding-top: 8px;
@@ -427,15 +458,15 @@
         <p>
           A grower reports plants struggling in this field, but can't say why or how far it
           spreads. As a crop scout, you'll diagnose it up close with a leaf-clamp porometer,
-          then take to the air and orbit to see its true extent — learning why scale matters.
+          then board your drone to see its true extent from the air — learning why scale matters.
           Follow the mission at the top of the screen.
         </p>
         <div class="keys">
           <kbd>W A S D</kbd><span>Move</span>
           <kbd>Mouse</kbd><span>Look</span>
           <kbd>E</kbd><span>Clamp &amp; measure leaf (ground)</span>
-          <kbd>Tab</kbd><span>Cycle ground → drone → satellite</span>
-          <kbd>1–6</kbd><span>Band: RGB · NIR · Thermal · NDVI · NDRE · SIF</span>
+          <kbd>Tab</kbd><span>Board / leave the drone (stand next to it)</span>
+          <kbd>1–6</kbd><span>Drone band: RGB · NIR · Thermal · NDVI · NDRE · SIF</span>
           <kbd>Space / C</kbd><span>Drone ascend / descend</span>
           <kbd>F</kbd><span>Switch crop (corn ⇄ strawberry ⇄ almond)</span>
           <kbd>H</kbd><span>Hint for the current mission step</span>
@@ -453,6 +484,13 @@
       <div class="m-obj" id="m-obj"></div>
       <div class="m-story" id="m-story"></div>
       <div class="m-dots" id="m-dots"></div>
+      <div class="m-meter" id="m-meter">
+        <div class="m-meter-track">
+          <div class="m-meter-fill" id="m-meter-fill"></div>
+          <div class="m-meter-thresh" id="m-meter-thresh"></div>
+        </div>
+        <div class="m-meter-label" id="m-meter-label"></div>
+      </div>
       <div class="m-hint" id="m-hint"></div>
     </div>
 

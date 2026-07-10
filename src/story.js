@@ -1,94 +1,69 @@
 /**
- * Guided mission for the agtech learning demo.
+ * Guided mission for the agtech learning demo (corn level).
  *
- * A crop-scout storyline that goes fine → coarse: the student first diagnoses a
- * sick plant up close with the LI-600 porometer (accurate, but one leaf at a
- * time), then discovers they can't hand-measure a whole field and unlocks the
- * drone and satellite for reach — learning that scale matters, and that each
- * scale trades accuracy for coverage.
+ * The arc: establish a healthy baseline on the ground, then hunt the stress down
+ * the rows while a meter tracks the worst plant found, then walk back to the
+ * parked drone, board it, and see the streak from the air in NDVI.
  *
- * Each beat carries narrative + an objective + a hint, and completes from actual
- * gameplay (scale changes, band selection, leaf measurements) reported via sync().
- * The mission is purely presentational — it never drives the game, only reads it.
+ * Beats complete from real gameplay reported via sync(): leaf measurements
+ * (health / maxStress), scale changes, and band selection. The mission only reads
+ * game state — it never drives it. (Satellite is reached another way, added later.)
  */
 
 const isVigorIndex = (band) => band === 'ndvi' || band === 'ndre';
 
 const BEATS = [
   {
-    eyebrow: 'Proximal · ground',
-    objective: 'Take your first reading — aim at a plant and press E',
+    eyebrow: 'Baseline · ground',
+    objective: 'Take a baseline — clamp a healthy (green) leaf and press E',
     story:
-      'A grower says plants in this field are struggling — but not everywhere, and they ' +
-      'can’t say why. You’re standing in the field with an LI-600 porometer: it clamps a ' +
-      'single leaf and measures how it is actually working — photosynthesis (ETR), water ' +
-      'loss through the stomata (gsw), and photosystem efficiency (ΦPSII, Fv′/Fm′).',
-    hint: 'Move with W A S D, look with the mouse. Aim at a plant until the crosshair turns green, then press E. The reading appears on the right.',
-    done: (s) => s.measured === true,
+      'A grower says plants in this field are struggling, but not everywhere. Before you can ' +
+      'spot the problem you need to know what healthy looks like. You carry an LI-600 porometer: ' +
+      'it clamps a leaf and measures how it is actually working — photosynthesis (ETR), water ' +
+      'loss (gsw), and photosystem efficiency. Read a good green plant near the edge first.',
+    hint: 'Move with W A S D, look with the mouse. Aim at a green plant until the crosshair turns green, then press E.',
+    done: (s) => s.health != null && s.health > 0.6,
   },
   {
-    eyebrow: 'Diagnosis · ground',
-    objective: 'Find a struggling plant — measure a leaf that reads “Stressed”',
+    eyebrow: 'Diagnose · ground',
+    objective: 'Find the worst of it — measure down the rows until the stress meter fills to the mark',
     story:
-      'That reading is ground truth: nothing is more accurate than clamping the actual ' +
-      'leaf. Now find the problem. A stressed leaf shows low ETR and gsw — it is ' +
-      'photosynthesizing and transpiring less. Hunt down a plant that is clearly in trouble.',
-    hint: 'Stressed plants look paler and yellower even in true color. Keep clamping leaves (E) until the panel tags one “Stressed”.',
-    done: (s) => s.health != null && s.health < 0.45,
+      'Now hunt down the problem. The stress runs in a streak that gets worse the deeper you go ' +
+      'into the field. Keep clamping leaves — the meter below tracks the most stressed plant ' +
+      'you have found. Push in until it reaches the marker.',
+    hint: 'The sickest rows are deep in the field, away from where you started. Keep measuring (E); the meter remembers your worst reading.',
+    meter: true,
+    done: (s) => s.maxStress != null && s.meterThreshold != null && s.maxStress >= s.meterThreshold,
   },
   {
-    eyebrow: 'Reach · the catch',
-    objective: 'See the bigger picture — press Tab to lift off in the drone',
+    eyebrow: 'Take off',
+    objective: 'Board the drone — walk back to it near your start and press Tab',
     story:
-      'You’ve confirmed one sick plant, precisely. But is it one plant, a patch, or the ' +
-      'whole field? Hand-measuring every plant would take days — the porometer is accurate ' +
-      'but slow and short-reach. To see how far the problem spreads, you need altitude.',
-    hint: 'Tab cycles the scales: ground → drone → satellite. Press Tab once to lift off in the drone.',
+      'You have confirmed the stress leaf by leaf, but not its shape or extent — measuring every ' +
+      'plant by hand would take days. Time for altitude. Your drone is parked on the ground a ' +
+      'little behind and to the side of where you started. Stand next to it to board it.',
+    hint: 'Head back toward your start; the drone sits just behind and off to one side. Get close and press Tab (Tab again lands it).',
     done: (s) => s.scale === 'drone',
   },
   {
     eyebrow: 'Drone · aerial',
-    objective: 'Map the stress — switch to NDVI (press 4) and find the affected zone',
+    objective: 'Map it — switch to NDVI (press 4) and spot the streak from the air',
     story:
-      'From the air you cover the whole field in seconds. A vegetation index like NDVI ' +
-      'mixes red and near-infrared light to turn invisible stress into a map: green = ' +
-      'vigorous, yellow/red = struggling. Now you can see the shape and size of the ' +
-      'problem — something no single leaf could tell you. You trade a little per-leaf ' +
-      'accuracy for enormous reach.',
-    hint: 'Press 4 for NDVI. Fly with W A S D and Space / C for altitude, and look for the yellow/red patch.',
+      'From the air you cover the whole field at once. A vegetation index like NDVI turns invisible ' +
+      'stress into a map: green = vigorous, red = struggling. The rows you measured on the ground ' +
+      'now show up as a single red streak — its true shape and size, which no single leaf could tell you.',
+    hint: 'Press 4 for NDVI. Fly out over the field (W A S D, Space / C for altitude) and find the red streak.',
     done: (s) => s.scale === 'drone' && isVigorIndex(s.band),
-  },
-  {
-    eyebrow: 'Satellite · orbital',
-    objective: 'Zoom out to orbit — press Tab to the satellite, then NDVI (press 4)',
-    story:
-      'Go higher still. From orbit one satellite watches whole regions — your entire field is ' +
-      'smaller than a single pixel. You lose the plant, but you gain the country: the map now ' +
-      'shows every state shaded by its average growing-season NDVI.',
-    hint: 'Press Tab until the U.S. map appears, then press 4 for NDVI.',
-    done: (s) => s.scale === 'satellite' && s.band === 'ndvi',
-  },
-  {
-    eyebrow: 'CONUS · NDVI',
-    objective: 'Read the map — find the single highest- and lowest-NDVI states',
-    story:
-      'At orbital scale you compare whole states, not plants — over the real satellite NDVI. ' +
-      'Hover states to read their average NDVI, and work out which one state is the greenest ' +
-      'and which is the barest. Drag to orbit, scroll to zoom.',
-    hint: null,
-    done: (s) => s.satExtremes === true,
   },
 ];
 
 const FINALE = {
-  eyebrow: 'Mission complete',
-  objective: 'You climbed the scales 🎉',
+  eyebrow: 'Nice work',
+  objective: 'Ground truth, meet the big picture 🎉',
   story:
-    'You diagnosed the problem leaf by leaf, then climbed until whole states fit on screen. ' +
-    'That is the tradeoff at the heart of precision agriculture: the porometer is accurate ' +
-    'but short-reach, the drone maps a field, the satellite compares whole regions. No single ' +
-    'scale is enough; each answers a different question. Keep exploring: switch crops (F), ' +
-    'try Thermal (3) or SIF (6).',
+    'You diagnosed the streak leaf by leaf, then rose up to see its whole shape from the air — the ' +
+    'porometer is accurate but short-reach, the drone maps the field in seconds. Keep exploring: ' +
+    'fly the field in other bands (Thermal 3, NDRE 5), or land (Tab) and measure more rows.',
   hint: null,
 };
 
@@ -103,11 +78,15 @@ export class Mission {
     this.elStory = document.getElementById('m-story');
     this.elDots = document.getElementById('m-dots');
     this.elHint = document.getElementById('m-hint');
+    this.elMeter = document.getElementById('m-meter');
+    this.elMeterFill = document.getElementById('m-meter-fill');
+    this.elMeterThresh = document.getElementById('m-meter-thresh');
+    this.elMeterLabel = document.getElementById('m-meter-label');
 
     this.i = 0;
     this.started = false;
     this.hintShown = false;
-    this.state = { scale: 'proximal', band: 'rgb', measured: false, health: null };
+    this.state = { scale: 'proximal', band: 'rgb', measured: false, health: null, maxStress: 0 };
     this._hintTimer = null;
   }
 
@@ -129,6 +108,8 @@ export class Mission {
     if (advanced) {
       this.hintShown = false;
       this._render(true);
+    } else if (this._current().meter) {
+      this._renderMeter(); // keep the stress meter live between advances
     }
   }
 
@@ -165,6 +146,7 @@ export class Mission {
     }
 
     this._renderHint();
+    this._renderMeter();
 
     clearTimeout(this._hintTimer);
     if (!complete && beat.hint) {
@@ -173,6 +155,27 @@ export class Mission {
         this._renderHint();
       }, AUTO_HINT_MS);
     }
+  }
+
+  _renderMeter() {
+    if (!this.elMeter) return;
+    const beat = this._current();
+    if (!beat.meter) {
+      this.elMeter.style.display = 'none';
+      return;
+    }
+    const max = this.state.meterMax || 1;
+    const fill = Math.min(1, (this.state.maxStress || 0) / max);
+    const mark = Math.min(1, (this.state.meterThreshold || max) / max);
+    this.elMeter.style.display = 'block';
+    this.elMeterFill.style.width = (fill * 100).toFixed(0) + '%';
+    this.elMeterFill.style.background = `hsl(${Math.round((1 - fill) * 110)}, 72%, 46%)`; // green → red with stress
+    this.elMeterThresh.style.left = (mark * 100).toFixed(0) + '%';
+    const pct = Math.round((this.state.maxStress || 0) * 100);
+    const done = (this.state.maxStress || 0) >= (this.state.meterThreshold || 1);
+    this.elMeterLabel.textContent = done
+      ? `Worst found: ${pct}% stress — target reached ✓`
+      : `Worst found: ${pct}% stress — reach the marker`;
   }
 
   _renderHint() {
