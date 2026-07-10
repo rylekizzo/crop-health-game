@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seeing Crop Health — Agtech</title>
+<style>
+  :root{
+    --bg:#0c140c;
+    --bg2:#10210f;
+    --fg:#e8f3e0;
+    --muted:#9fb89a;
+    --accent:#7cc242;
+    --accent2:#8bc53f;
+    --sky:#87b9e0;
+    --soil:#3a2a1c;
+    --hot:#fce673;
+    --hot2:#d8451a;
+    --nir:#ff8db0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#000;color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+
+  #deck{position:fixed;inset:0}
+  .slide{
+    position:absolute;inset:0;
+    display:none;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    padding:6vh 9vw;
+    background:radial-gradient(circle at 50% 18%, var(--bg2), var(--bg) 70%);
+    opacity:0;
+    transition:opacity .45s ease;
+  }
+  .slide.active{display:flex;opacity:1;animation:rise .55s cubic-bezier(.2,.7,.2,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+
+  h1{font-size:clamp(2rem,5.5vw,4.4rem);line-height:1.05;letter-spacing:.3px;font-weight:800}
+  h2{font-size:clamp(1.6rem,4vw,3rem);line-height:1.1;font-weight:800;margin-bottom:.4em}
+  .accent{color:var(--accent)}
+  .sub{font-size:clamp(1rem,2vw,1.5rem);color:var(--muted);margin-top:1.2rem;max-width:24ch;line-height:1.45}
+  .sub.wide{max-width:40ch}
+  .kicker{font-size:clamp(.8rem,1.5vw,1.05rem);letter-spacing:.32em;text-transform:uppercase;
+    color:var(--accent);font-weight:700;margin-bottom:1.4rem;opacity:.9}
+  .big-q{font-size:clamp(2.2rem,6vw,5rem);font-weight:800;line-height:1.05;max-width:16ch}
+
+  /* layout helpers */
+  .row{display:flex;gap:clamp(1rem,3vw,3rem);align-items:stretch;justify-content:center;flex-wrap:wrap;width:100%}
+  .stack{display:flex;flex-direction:column;align-items:center}
+
+  /* scale cards */
+  .scales{display:flex;gap:2vw;align-items:stretch;justify-content:center;width:100%;max-width:1100px;margin-top:2.5rem}
+  .scard{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(124,194,66,.25);
+    border-radius:16px;padding:1.6rem 1.2rem;display:flex;flex-direction:column;align-items:center;gap:.6rem;
+    transition:transform .3s, border-color .3s, background .3s}
+  .scard .ic{font-size:clamp(2.4rem,5vw,3.6rem);line-height:1}
+  .scard .nm{font-weight:800;font-size:clamp(1rem,2.2vw,1.5rem)}
+  .scard .alt{color:var(--accent);font-weight:700;font-size:clamp(.85rem,1.6vw,1.05rem)}
+  .scard .ds{color:var(--muted);font-size:clamp(.8rem,1.5vw,1rem);line-height:1.4}
+  .scard:hover{transform:translateY(-6px);border-color:var(--accent);background:rgba(124,194,66,.08)}
+
+  /* band swatches */
+  .bands{display:flex;gap:1.4vw;flex-wrap:wrap;justify-content:center;margin-top:2.4rem;width:100%;max-width:1000px}
+  .band{width:clamp(120px,15vw,180px)}
+  .band .chip{height:clamp(80px,11vw,130px);border-radius:14px;border:1px solid rgba(255,255,255,.15);
+    display:flex;align-items:flex-end;padding:.5rem .7rem;font-weight:800;font-size:.95rem;color:#0c140c;
+    text-shadow:0 1px 2px rgba(255,255,255,.4)}
+  .band .cap{margin-top:.55rem;color:var(--muted);font-size:clamp(.75rem,1.4vw,.95rem);line-height:1.35}
+  .b-rgb{background:linear-gradient(135deg,#bd9e3d,#9ea832 50%,#429c29)}
+  .b-nir{background:linear-gradient(135deg,#150a0a,#80524c 55%,#fff0db)}
+  .b-thermal{background:linear-gradient(135deg,#05052e,#9e2e60 50%,#eb730f,#fce673)}
+  .b-ndvi{background:linear-gradient(135deg,#a6002b,#ffef8c 50%,#00683a)}
+
+  /* crops */
+  .crops{display:flex;gap:2.5vw;justify-content:center;margin-top:2.6rem;flex-wrap:wrap}
+  .crop{display:flex;flex-direction:column;align-items:center;gap:.7rem}
+  .crop .glyph{font-size:clamp(3rem,7vw,5.5rem);filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+  .crop .cn{font-weight:800;font-size:clamp(1.1rem,2.4vw,1.6rem)}
+  .crop .cl{color:var(--accent);font-size:clamp(.8rem,1.5vw,1rem);font-weight:600}
+
+  /* NDVI formula */
+  .formula{margin-top:2rem;font-family:ui-monospace,monospace;font-size:clamp(1.1rem,3vw,2.2rem);
+    background:rgba(255,255,255,.05);border:1px solid rgba(124,194,66,.3);border-radius:14px;
+    padding:1rem 1.6rem;display:inline-block}
+  .formula .nir{color:var(--nir)} .formula .red{color:#ff6b6b}
+
+  /* controls grid (final slide) */
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:.6rem 1.4rem;text-align:left;
+    margin-top:2rem;font-size:clamp(.95rem,1.8vw,1.3rem)}
+  kbd{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-bottom-width:3px;
+    border-radius:7px;padding:3px 12px;font-family:ui-monospace,monospace;font-weight:700;min-width:2.4em;
+    display:inline-block;text-align:center}
+  .keys .d{color:var(--muted);align-self:center}
+
+  /* word cloud */
+  .cloud{display:flex;flex-wrap:wrap;gap:.3em .7em;align-items:center;justify-content:center;
+    max-width:1100px;line-height:1.05}
+  .cloud .w{font-weight:800;color:var(--fg);opacity:.92;
+    animation:pop .5s cubic-bezier(.2,.8,.2,1) both}
+  .cloud .w.accent{color:var(--accent)}
+  .cloud .s5{font-size:clamp(2.6rem,7vw,5.5rem)}
+  .cloud .s4{font-size:clamp(2rem,5vw,4rem)}
+  .cloud .s3{font-size:clamp(1.5rem,3.4vw,2.7rem);opacity:.8}
+  .cloud .s2{font-size:clamp(1.1rem,2.2vw,1.8rem);opacity:.62}
+  .cloud .w:nth-child(odd){transform:rotate(-1.5deg)}
+  .cloud .w:nth-child(3n){transform:rotate(2deg)}
+  @keyframes pop{from{opacity:0;transform:scale(.6)}}
+
+  /* big number */
+  .huge{font-size:clamp(4rem,15vw,12rem);font-weight:800;line-height:.9;color:var(--accent);
+    text-shadow:0 0 50px rgba(124,194,66,.35)}
+  .huge small{font-size:.28em;color:var(--fg);font-weight:700;letter-spacing:.05em}
+
+  /* bar chart */
+  .chart{width:100%;max-width:980px;margin-top:1.8rem;display:flex;flex-direction:column;gap:.7rem}
+  .bar{display:grid;grid-template-columns:clamp(7rem,18vw,12rem) 1fr;align-items:center;gap:1rem}
+  .bar .lbl{text-align:right;font-weight:700;font-size:clamp(.85rem,1.7vw,1.15rem);line-height:1.1}
+  .bar .lbl small{display:block;color:var(--muted);font-weight:500;font-size:.72em}
+  .bar .track{display:flex;align-items:center;gap:.6rem;height:clamp(26px,4vw,38px);overflow:visible}
+  .bar .fill{height:100%;border-radius:7px;flex:0 0 auto;background:rgba(255,255,255,.2);
+    transition:width .8s cubic-bezier(.2,.8,.2,1)}
+  .bar .fill.ag{background:linear-gradient(90deg,#5a8a2e,var(--accent))}
+  .bar .fill.farm{background:linear-gradient(90deg,#4a6e2a,#a6c95a)}
+  .bar .fill.tech{background:linear-gradient(90deg,#3a6ea5,#6aa6e6)}
+  .bar .val{font-weight:800;white-space:nowrap;font-size:clamp(.78rem,1.6vw,1.05rem)}
+  .bar .val.big{color:var(--accent)}
+  .bar .val.bigtech{color:#7fb4ee}
+  .footnote{margin-top:1.6rem;color:var(--muted);font-size:clamp(.72rem,1.4vw,.92rem);max-width:60ch;line-height:1.5}
+
+  /* SVG figures (light wave, spectrum graph) */
+  .fig{width:100%;max-width:1000px;margin-top:1rem}
+  .fig svg{width:100%;height:auto;display:block;overflow:visible}
+  .fig text{font-family:system-ui,sans-serif}
+  /* traveling light waves — translate by exactly one wavelength for a seamless loop */
+  .fig.wave svg{overflow:hidden}
+  .travel-long{animation:travelLong 18s linear infinite}
+  .travel-short{animation:travelShort 19.286s linear infinite}
+  @keyframes travelLong{to{transform:translateX(-936px)}}
+  @keyframes travelShort{to{transform:translateX(-1002.857px)}}
+  @media (prefers-reduced-motion:reduce){.travel-long,.travel-short{animation:none}}
+
+  /* photons — packets of light zipping across at the speed of light */
+  .photonband{position:relative;width:100%;max-width:900px;height:clamp(120px,18vh,170px);
+    margin-top:1.6rem;overflow:hidden;border-radius:16px;border:1px solid rgba(124,194,66,.18);
+    background:radial-gradient(ellipse at center,rgba(124,194,66,.06),rgba(0,0,0,0))}
+  .photon{position:absolute;left:-10%;width:clamp(46px,7vw,74px);height:5px;border-radius:5px;
+    background:linear-gradient(90deg,rgba(255,255,255,0),var(--c,#fff2b0));
+    box-shadow:0 0 16px 3px var(--g,rgba(255,236,140,.85));animation:zoom 1.5s linear infinite}
+  .photon::after{content:"";position:absolute;right:-3px;top:50%;width:9px;height:9px;border-radius:50%;
+    transform:translateY(-50%);background:var(--c,#fff2b0);box-shadow:0 0 12px 4px var(--g,rgba(255,236,140,.9))}
+  @keyframes zoom{to{left:110%}}
+  .speedtag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:ui-monospace,monospace;
+    font-weight:800;font-size:clamp(1rem,2.4vw,1.7rem);color:rgba(232,243,224,.9);
+    text-shadow:0 2px 12px #000;letter-spacing:.04em;pointer-events:none}
+  @media (prefers-reduced-motion:reduce){.photon{animation-play-state:paused}}
+
+  /* EM spectrum */
+  .emspec{width:100%;max-width:1060px;margin-top:2.2rem}
+  .emspec .bar{display:flex;height:clamp(46px,7vw,74px);border-radius:10px;overflow:hidden;
+    border:1px solid rgba(255,255,255,.15)}
+  .emspec .seg{display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;
+    font-size:clamp(.6rem,1.2vw,.85rem);text-shadow:0 1px 3px rgba(0,0,0,.5);position:relative}
+  .emspec .seg.vis{box-shadow:0 0 0 3px var(--accent), 0 0 28px var(--accent);z-index:2;border-radius:3px}
+  .emspec .seg.vis span{color:#0c140c;font-weight:800;text-shadow:none}
+  .emspec .scalerow{display:flex;justify-content:space-between;margin-top:.55rem;
+    color:var(--muted);font-size:clamp(.68rem,1.3vw,.92rem)}
+  .emspec .point{margin-top:1.1rem;font-size:clamp(.9rem,1.8vw,1.25rem);color:var(--fg)}
+  .emspec .point b{color:var(--accent)}
+
+  /* two-panel leaf compare */
+  .compare{display:flex;gap:2vw;justify-content:center;margin-top:2.2rem;flex-wrap:wrap;width:100%;max-width:900px}
+  .panel{flex:1;min-width:240px;border-radius:16px;padding:1.6rem 1.2rem;display:flex;flex-direction:column;
+    align-items:center;gap:.5rem;border:1px solid rgba(255,255,255,.14)}
+  .panel.vis{background:linear-gradient(160deg,#1c3a1a,#0f240e)}
+  .panel.nir{background:linear-gradient(160deg,#2a1414,#3a2420)}
+  .panel .glyph{font-size:clamp(2.6rem,6vw,4rem)}
+  .panel .pt{font-weight:800;font-size:clamp(1rem,2.2vw,1.4rem)}
+  .panel .pt small{display:block;color:var(--muted);font-weight:500;font-size:.62em;margin-top:.1em}
+  .panel .pd{color:var(--muted);font-size:clamp(.8rem,1.5vw,1rem);line-height:1.4;max-width:24ch}
+
+  /* company grid (current agtech examples) */
+  .cogrid{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(.6rem,1.4vw,1rem);
+    width:100%;max-width:1080px;margin-top:1.8rem}
+  .co{background:rgba(255,255,255,.04);border:1px solid rgba(124,194,66,.22);border-radius:13px;
+    padding:1rem .9rem;display:flex;flex-direction:column;gap:.35rem;text-align:left}
+  .co .e{font-size:clamp(1.4rem,2.6vw,1.9rem);line-height:1}
+  .co .cn{font-weight:800;font-size:clamp(.92rem,1.7vw,1.15rem)}
+  .co .cd{color:var(--muted);font-size:clamp(.72rem,1.3vw,.9rem);line-height:1.32}
+  .co.hl{border-color:var(--accent);background:rgba(124,194,66,.09)}
+  .co.hl .cn{color:var(--accent)}
+  @media(max-width:760px){.cogrid{grid-template-columns:repeat(2,1fr)}}
+
+  /* image slide */
+  .imgslide{padding:4vh 5vw}
+  .bigimg{max-width:min(92vw,1300px);max-height:62vh;border-radius:12px;
+    box-shadow:0 18px 50px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.12);background:#fff}
+
+  .pill{display:inline-block;background:var(--accent);color:#0c140c;font-weight:800;
+    padding:.7rem 1.8rem;border-radius:999px;margin-top:2.4rem;font-size:clamp(1rem,2.2vw,1.4rem)}
+
+  /* horizon / scene decoration for title */
+  .scene{position:absolute;inset:0;overflow:hidden;z-index:-1;opacity:.9}
+  .sky{position:absolute;inset:0;background:linear-gradient(#0c140c 0%, #12361f 55%, #1d4a26 70%, #2a5e2c 100%)}
+  .sun{position:absolute;top:14%;left:50%;transform:translateX(-50%);width:160px;height:160px;border-radius:50%;
+    background:radial-gradient(circle,#fef3c0,#f6d35a 45%,transparent 70%);filter:blur(2px);opacity:.55}
+  .rows{position:absolute;left:-10%;right:-10%;bottom:-2%;height:42%;
+    background:repeating-linear-gradient(90deg,#1f4521 0 22px,#2b5c2c 22px 44px);
+    transform:perspective(420px) rotateX(62deg);transform-origin:bottom;
+    border-top:2px solid rgba(124,194,66,.35)}
+
+  /* satellite globe */
+  .globe{width:clamp(180px,26vw,320px);height:clamp(180px,26vw,320px);border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #5aa6e0, #1d5a8a 55%, #0a2b44 100%);
+    box-shadow:inset -22px -22px 60px rgba(0,0,0,.6), 0 0 70px rgba(90,166,224,.35);
+    position:relative;flex:0 0 auto}
+  .globe::after{content:"";position:absolute;inset:0;border-radius:50%;
+    background:radial-gradient(circle at 60% 65%, rgba(60,150,70,.85), transparent 30%),
+               radial-gradient(circle at 38% 58%, rgba(70,160,80,.7), transparent 26%),
+               radial-gradient(circle at 52% 40%, rgba(80,140,70,.6), transparent 22%)}
+  .orbit{position:absolute;inset:-9%;border:2px dashed rgba(124,194,66,.4);border-radius:50%;
+    animation:spin 14s linear infinite}
+  .orbit .sat{position:absolute;top:-9px;left:50%;font-size:1.6rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* drone */
+  .drone{font-size:clamp(4rem,9vw,7rem);animation:hover 3s ease-in-out infinite}
+  @keyframes hover{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+
+  /* leaf clamp viz */
+  .leafviz{display:flex;align-items:center;gap:1.5rem;font-size:clamp(2.6rem,6vw,4.5rem)}
+
+  /* yield: healthy vs stressed harvest */
+  .yieldcmp{display:flex;gap:clamp(2rem,8vw,5rem);align-items:flex-end;justify-content:center;margin-top:2.2rem}
+  .yc{display:flex;flex-direction:column;align-items:center;gap:.7rem}
+  .yc .bskt{font-size:clamp(2.4rem,5vw,3.6rem)}
+  .yc .col{width:clamp(64px,11vw,110px);border-radius:10px 10px 0 0;display:flex;align-items:flex-start;
+    justify-content:center;padding-top:.5rem;font-weight:800;color:#0c140c;font-size:clamp(.8rem,1.5vw,1.05rem)}
+  .yc.good .col{height:clamp(120px,22vh,210px);background:linear-gradient(#a6c95a,#5a8a2e)}
+  .yc.bad .col{height:clamp(54px,10vh,96px);background:linear-gradient(#d8c13a,#b07a2e)}
+  .yc .nm{font-weight:700;font-size:clamp(.85rem,1.6vw,1.1rem)}
+  .yc .nm small{display:block;color:var(--muted);font-weight:500;font-size:.78em}
+
+  /* photosynthesis: inputs → leaf → sugars */
+  .pschem{display:flex;align-items:center;gap:clamp(.8rem,2.5vw,2rem);flex-wrap:wrap;justify-content:center;margin-top:2.2rem}
+  .pinputs{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+  .ichip{display:flex;align-items:center;gap:.55rem;background:rgba(255,255,255,.05);
+    border:1px solid rgba(124,194,66,.25);border-radius:12px;padding:.55rem .9rem;font-weight:700;
+    font-size:clamp(.85rem,1.6vw,1.1rem)}
+  .ichip .e{font-size:clamp(1.4rem,3vw,2rem)}
+  .parrow{font-size:clamp(1.6rem,3.5vw,2.6rem);color:var(--accent);font-weight:800}
+  .pleaf{font-size:clamp(3rem,7vw,5rem);filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+  .pout{display:flex;flex-direction:column;align-items:center;gap:.2rem}
+  .pout .e{font-size:clamp(2.2rem,5vw,3.4rem)}
+  .pout .t{font-weight:800;color:var(--accent);font-size:clamp(.9rem,1.8vw,1.25rem)}
+
+  /* progress + chrome */
+  #bar{position:fixed;left:0;top:0;height:4px;background:var(--accent);width:0;z-index:20;
+    transition:width .4s ease;box-shadow:0 0 12px var(--accent)}
+  #count{position:fixed;right:18px;bottom:14px;color:var(--muted);font-family:ui-monospace,monospace;
+    font-size:13px;z-index:20;opacity:.7}
+  #hint{position:fixed;left:18px;bottom:14px;color:var(--muted);font-family:ui-monospace,monospace;
+    font-size:12px;z-index:20;opacity:.5}
+  .logo{position:fixed;left:18px;top:18px;font-weight:800;font-size:13px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--accent);z-index:20;opacity:.7}
+
+  .two{display:flex;gap:4vw;align-items:center;justify-content:center;flex-wrap:wrap;width:100%}
+  .two .txt{max-width:18ch;text-align:left}
+  .two .txt .sub{text-align:left;margin-top:.8rem}
+  @media(max-width:720px){.two .txt{text-align:center}.two .txt .sub{text-align:center}}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div class="logo">Crop Health</div>
+<div id="count"></div>
+<div id="hint">← →  /  space to advance</div>
+
+<div id="deck">
+
+  <!-- 1 — TITLE -->
+  <section class="slide active">
+    <div class="scene">
+      <div class="sky"></div><div class="sun"></div><div class="rows"></div>
+    </div>
+    <div class="kicker">Agriculture × Technology</div>
+    <h1>Agriculture,<br>meet <span class="accent">technology.</span></h1>
+    <p class="sub wide">How we feed 8 billion people — and the tools that are changing it.</p>
+  </section>
+
+  <!-- 2 — AUDIENCE QUESTION -->
+  <section class="slide">
+    <div class="kicker">Quick question</div>
+    <p class="big-q">What is the purpose of <span class="accent">agriculture?</span></p>
+    <p class="sub wide">Shout it out. There's more than one right answer…</p>
+  </section>
+
+  <!-- 3 — WORD CLOUD -->
+  <section class="slide">
+    <div class="kicker">It's everything</div>
+    <div class="cloud">
+      <span class="w s5 accent">Food</span>
+      <span class="w s4">Fuel</span>
+      <span class="w s4">Fiber</span>
+      <span class="w s3">Feed</span>
+      <span class="w s5 accent">Grow</span>
+      <span class="w s2">Trade</span>
+      <span class="w s3">Crops</span>
+      <span class="w s2">Beauty</span>
+      <span class="w s4 accent">Energy</span>
+      <span class="w s2">Fun</span>
+      <span class="w s3">Jobs</span>
+      <span class="w s2">Medicine</span>
+      <span class="w s3">Soil</span>
+      <span class="w s4">Water</span>
+      <span class="w s2">Flowers</span>
+      <span class="w s3 accent">Health</span>
+      <span class="w s2">Community</span>
+      <span class="w s4">Livestock</span>
+      <span class="w s2">Clothing</span>
+      <span class="w s3">Harvest</span>
+      <span class="w s2">Seeds</span>
+      <span class="w s2">Wine</span>
+      <span class="w s3">Nutrition</span>
+      <span class="w s2">Timber</span>
+      <span class="w s2">Spices</span>
+      <span class="w s4 accent">Life</span>
+      <span class="w s2">Coffee</span>
+      <span class="w s3">Sustain</span>
+      <span class="w s2">Bees</span>
+      <span class="w s2">Cotton</span>
+    </div>
+  </section>
+
+  <!-- 4 — DEFINE AGTECH -->
+  <section class="slide">
+    <div class="kicker">So what is…</div>
+    <h2><span class="accent">AgTech</span></h2>
+    <p class="sub wide" style="max-width:32ch;font-size:clamp(1.1rem,2.4vw,1.8rem);color:var(--fg)">
+      Using <span class="accent">technology</span> — sensors, drones, satellites, data, robots, and AI —
+      to grow more food with less land, water, and waste.
+    </p>
+    <p class="sub wide">Agriculture is one of the oldest things humans do. AgTech is how we keep doing it for 8 billion people.</p>
+  </section>
+
+  <!-- 5 — AGTECH LANDSCAPE -->
+  <section class="slide imgslide">
+    <div class="kicker">A whole industry</div>
+    <h2 style="margin-bottom:.6rem">Hundreds of companies, one mission.</h2>
+    <img src="agtech-landscape-2019.webp" alt="AgTech industry landscape 2019" class="bigimg" />
+    <p class="sub wide" style="margin-top:.8rem">The 2019 AgTech landscape — every logo is a company building the future of farming. <span class="accent">Better Food Ventures</span></p>
+  </section>
+
+  <!-- 6 — CURRENT AGTECH: 2026 COHORT -->
+  <section class="slide">
+    <div class="kicker">A few examples · 2026 cohort</div>
+    <h2 style="margin-bottom:.2rem">Eight <span class="accent">AgTech startups.</span></h2>
+    <div class="cogrid">
+      <div class="co"><span class="e">🔬</span><span class="cn">Fotenix</span><span class="cd">Robots that scout greenhouses for pests, disease &amp; crops.</span></div>
+      <div class="co"><span class="e">🌞</span><span class="cn">Glaia</span><span class="cd">Crop inputs that boost photosynthesis to raise yields.</span></div>
+      <div class="co"><span class="e">🎯</span><span class="cn">Cordon</span><span class="cd">GPS-guided foliar spraying — feed each plant only what it needs.</span></div>
+      <div class="co"><span class="e">🐄</span><span class="cn">HerdVision</span><span class="cd">Cameras that monitor cattle health and herd efficiency.</span></div>
+      <div class="co"><span class="e">🐔</span><span class="cn">FLOX</span><span class="cd">AI that monitors poultry and plans farm operations.</span></div>
+      <div class="co"><span class="e">🧪</span><span class="cn">CDotBio</span><span class="cd">Carbon-dot delivery to make crop protection work better.</span></div>
+      <div class="co"><span class="e">🌱</span><span class="cn">SugaROx</span><span class="cd">Precision biostimulants for crop productivity &amp; resilience.</span></div>
+      <div class="co"><span class="e">♻️</span><span class="cn">Fibe</span><span class="cd">Sustainable fibres made from agricultural waste.</span></div>
+    </div>
+    <p class="sub wide" style="margin-top:1.2rem">A 2026 cohort of UK startups selected for a US-expansion programme — a snapshot of the range of problems AgTech is working on.</p>
+  </section>
+
+  <!-- 7 — HOW BIG (big number) -->
+  <section class="slide">
+    <div class="kicker">How big is this, really?</div>
+    <div class="huge">$10T<br><small>of food &amp; agriculture, every single year</small></div>
+    <p class="sub wide">That's roughly <span class="accent">1 of every 10 dollars</span> in the entire world economy. Agriculture is the biggest industry on Earth — and it feeds all 8 billion of us.</p>
+  </section>
+
+  <!-- 8 — REVENUE: AG WINS -->
+  <section class="slide">
+    <div class="kicker">Annual revenue · value produced each year</div>
+    <h2 style="margin-bottom:.3rem">By <span class="accent">revenue</span>, agriculture is the largest.</h2>
+    <div class="chart">
+      <div class="bar"><div class="lbl">Food &amp; Agriculture<small>whole system</small></div>
+        <div class="track"><div class="fill ag" style="width:77%"></div><span class="val big">~$10T / yr</span></div></div>
+      <div class="bar"><div class="lbl">Farming alone<small>value added</small></div>
+        <div class="track"><div class="fill farm" style="width:29%"></div><span class="val">~$3.8T</span></div></div>
+      <div class="bar"><div class="lbl">Amazon<small>revenue</small></div>
+        <div class="track"><div class="fill" style="width:4.9%"></div><span class="val">$0.64T</span></div></div>
+      <div class="bar"><div class="lbl">Apple<small>revenue</small></div>
+        <div class="track"><div class="fill" style="width:3.2%"></div><span class="val">$0.41T</span></div></div>
+      <div class="bar"><div class="lbl">Alphabet<small>revenue</small></div>
+        <div class="track"><div class="fill" style="width:3.0%"></div><span class="val">$0.39T</span></div></div>
+      <div class="bar"><div class="lbl">Microsoft<small>revenue</small></div>
+        <div class="track"><div class="fill" style="width:2.2%"></div><span class="val">$0.28T</span></div></div>
+      <div class="bar"><div class="lbl">Nvidia<small>revenue</small></div>
+        <div class="track"><div class="fill" style="width:1.5%"></div><span class="val">$0.20T</span></div></div>
+    </div>
+    <p class="footnote">Companies shown by <em>annual revenue</em> — value produced each year — to match how agriculture's yearly value is measured. Figures approximate, 2024–25. But revenue is only half the picture.</p>
+  </section>
+
+  <!-- 9 — MARKET CAP: TECH WINS -->
+  <section class="slide">
+    <div class="kicker">Market capitalization · what investors will pay</div>
+    <h2 style="margin-bottom:.3rem">By <span style="color:#7fb4ee">market cap</span>, the order reverses.</h2>
+    <div class="chart">
+      <div class="bar"><div class="lbl">Nvidia<small>chips / AI</small></div>
+        <div class="track"><div class="fill tech" style="width:77%"></div><span class="val bigtech">~$5.0T</span></div></div>
+      <div class="bar"><div class="lbl">Apple<small>phones</small></div>
+        <div class="track"><div class="fill tech" style="width:69%"></div><span class="val bigtech">~$4.5T</span></div></div>
+      <div class="bar"><div class="lbl">Microsoft<small>software</small></div>
+        <div class="track"><div class="fill tech" style="width:54%"></div><span class="val bigtech">~$3.5T</span></div></div>
+      <div class="bar"><div class="lbl">Deere<small>biggest ag-tech co.</small></div>
+        <div class="track"><div class="fill farm" style="width:2.5%"></div><span class="val">$0.16T</span></div></div>
+      <div class="bar"><div class="lbl">Corteva<small>seeds</small></div>
+        <div class="track"><div class="fill farm" style="width:0.9%"></div><span class="val">$0.06T</span></div></div>
+      <div class="bar"><div class="lbl">Nutrien<small>fertilizer</small></div>
+        <div class="track"><div class="fill farm" style="width:0.5%"></div><span class="val">$0.03T</span></div></div>
+    </div>
+    <p class="footnote">Market cap = the price tag investors put on a company today — a bet on its <em>future</em> growth. The biggest agriculture company on Earth (<span class="accent">Deere</span>) is worth about <span style="color:#7fb4ee">3% of Nvidia.</span> Figures approximate, 2026.</p>
+  </section>
+
+  <!-- 10 — THE INSIGHT / OPPORTUNITY -->
+  <section class="slide">
+    <div class="kicker">Current value vs. future value</div>
+    <h2>Revenue measures today.<br>Market cap measures <span class="accent">tomorrow.</span></h2>
+    <p class="sub wide" style="max-width:44ch">A company's market cap is a claim about its future. Tech is valued far above its current revenue because investors expect it to keep growing. Agriculture is valued below its size because they don't expect it to change quickly.</p>
+    <p class="sub wide" style="max-width:44ch;color:var(--fg)"><span class="accent">AgTech</span> is the work of closing that gap — applying sensors, data, and automation so the largest industry on Earth can also be one that improves quickly.</p>
+  </section>
+
+  <!-- 11 — OUR FOCUS: SENSING CROP HEALTH -->
+  <section class="slide">
+    <div class="kicker">Zooming in on one part of AgTech</div>
+    <h2>Today's lesson:<br><span class="accent">Sensing Crop Health.</span></h2>
+    <p class="sub wide" style="max-width:42ch">Out of everything AgTech does, we'll focus on one question — <em>how healthy is a crop, right now?</em> Answer it well and three of farming's hardest problems get easier:</p>
+    <div class="scales">
+      <div class="scard">
+        <div class="ic">📈</div>
+        <div class="nm">Yield prediction</div>
+        <div class="ds">How much will this field produce, and when?</div>
+      </div>
+      <div class="scard">
+        <div class="ic">🐛</div>
+        <div class="nm">Pest &amp; disease detection</div>
+        <div class="ds">Catch an outbreak while it's still one corner of the field</div>
+      </div>
+      <div class="scard">
+        <div class="ic">💧</div>
+        <div class="nm">Input-use efficiency</div>
+        <div class="ds">Water, fertilizer, and spray only where they're needed</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 — YIELD -->
+  <section class="slide">
+    <div class="kicker">What farming is really after</div>
+    <h2>It all comes down to <span class="accent">yield.</span></h2>
+    <div class="yieldcmp">
+      <div class="yc good"><div class="bskt">🧺🧺</div><div class="col">full</div><div class="nm">Healthy crop<small>more harvest</small></div></div>
+      <div class="yc bad"><div class="bskt">🧺</div><div class="col">less</div><div class="nm">Stressed crop<small>less harvest</small></div></div>
+    </div>
+    <p class="sub wide">Yield is simply <span class="accent">how much a field produces</span> — the grain, fruit, or nuts you actually harvest. Every farming decision exists to protect it, and healthier plants mean a bigger harvest.</p>
+  </section>
+
+  <!-- 13 — PHOTOSYNTHESIS -->
+  <section class="slide">
+    <div class="kicker">Where yield comes from</div>
+    <h2>Plants build food from <span class="accent">light.</span></h2>
+    <div class="pschem">
+      <div class="pinputs">
+        <div class="ichip"><span class="e">☀️</span> Light</div>
+        <div class="ichip"><span class="e">🌡️</span> Heat</div>
+        <div class="ichip"><span class="e">💨</span> Air (CO₂)</div>
+        <div class="ichip"><span class="e">💧</span> Water</div>
+      </div>
+      <div class="parrow">→</div>
+      <div class="pleaf">🌿</div>
+      <div class="parrow">→</div>
+      <div class="pout"><span class="e">🍬</span><span class="t">Sugars</span></div>
+    </div>
+    <p class="sub wide">Inside every leaf, <span class="accent">photosynthesis</span> combines sunlight, warmth, the carbon in air, and water into sugars — the plant's food. Those sugars become stems, fruit, and grain: <em>yield</em>. (It also releases the oxygen we breathe.)</p>
+  </section>
+
+  <!-- 14 — THE PROBLEM -->
+  <section class="slide">
+    <div class="kicker">The problem</div>
+    <h2>Plants can't tell you<br>when they're sick.</h2>
+    <p class="sub wide">Photosynthesis can be failing inside a plant long before you'd ever see it. A field holds <span class="accent">millions of plants</span> across hundreds of acres — by the time leaves look bad to your eye, it's often too late. So how do we spot stress <em>early</em>, across a whole field?</p>
+  </section>
+
+  <!-- 15 — WHAT IS LIGHT -->
+  <section class="slide">
+    <div class="kicker">First — what is light?</div>
+    <h2>Light is energy that travels as a <span class="accent">wave.</span></h2>
+    <div class="fig wave">
+      <svg viewBox="0 0 900 340" role="img" aria-label="Two light waves of different wavelengths">
+        <!-- long wave + its λ bracket. Two caliper copies spaced one full loop
+             (936 = 3λ) apart, so as one drifts off the left the other arrives
+             from the right and the loop reset is seamless. -->
+        <g class="travel-long">
+          <polyline id="wlong" fill="none" stroke="#ef8a3c" stroke-width="4" stroke-linecap="round"/>
+          <g class="caliper-l"><line x1="138" y1="28" x2="450" y2="28" stroke="#e8b04a" stroke-width="2" marker-start="url(#ah)" marker-end="url(#ah)"/>
+            <line x1="138" y1="44" x2="138" y2="28" stroke="#e8b04a" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <line x1="450" y1="44" x2="450" y2="28" stroke="#e8b04a" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <text x="294" y="20" fill="#e8c87a" font-size="17" font-weight="700" text-anchor="middle">wavelength (λ)</text></g>
+          <g class="caliper-l"><line x1="1074" y1="28" x2="1386" y2="28" stroke="#e8b04a" stroke-width="2" marker-start="url(#ah)" marker-end="url(#ah)"/>
+            <line x1="1074" y1="44" x2="1074" y2="28" stroke="#e8b04a" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <line x1="1386" y1="44" x2="1386" y2="28" stroke="#e8b04a" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <text x="1230" y="20" fill="#e8c87a" font-size="17" font-weight="700" text-anchor="middle">wavelength (λ)</text></g>
+        </g>
+
+        <!-- short wave + its λ bracket. Copies spaced 1002.857 = 9λ apart. -->
+        <g class="travel-short">
+          <polyline id="wshort" fill="none" stroke="#5a8fd8" stroke-width="4" stroke-linecap="round"/>
+          <g class="caliper-s"><line x1="87.86" y1="198" x2="199.29" y2="198" stroke="#7fa9e6" stroke-width="2" marker-start="url(#ah2)" marker-end="url(#ah2)"/>
+            <line x1="87.86" y1="214" x2="87.86" y2="198" stroke="#7fa9e6" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <line x1="199.29" y1="214" x2="199.29" y2="198" stroke="#7fa9e6" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <text x="143.57" y="190" fill="#9fc0ee" font-size="15" font-weight="700" text-anchor="middle">shorter λ</text></g>
+          <g class="caliper-s"><line x1="1090.71" y1="198" x2="1202.14" y2="198" stroke="#7fa9e6" stroke-width="2" marker-start="url(#ah2)" marker-end="url(#ah2)"/>
+            <line x1="1090.71" y1="214" x2="1090.71" y2="198" stroke="#7fa9e6" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <line x1="1202.14" y1="214" x2="1202.14" y2="198" stroke="#7fa9e6" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <text x="1146.43" y="190" fill="#9fc0ee" font-size="15" font-weight="700" text-anchor="middle">shorter λ</text></g>
+        </g>
+
+        <!-- static captions -->
+        <text x="450" y="150" fill="#cfe0c8" font-size="17" text-anchor="middle">Long wavelength → low energy &#160;·&#160; radio, infrared, red light</text>
+        <text x="450" y="320" fill="#cfe0c8" font-size="17" text-anchor="middle">Short wavelength → high energy &#160;·&#160; blue light, UV, X-rays</text>
+
+        <defs>
+          <marker id="ah" markerWidth="9" markerHeight="9" refX="4.5" refY="4.5" orient="auto"><path d="M8,1 L1,4.5 L8,8" fill="none" stroke="#e8b04a" stroke-width="1.6"/></marker>
+          <marker id="ah2" markerWidth="9" markerHeight="9" refX="4.5" refY="4.5" orient="auto"><path d="M8,1 L1,4.5 L8,8" fill="none" stroke="#7fa9e6" stroke-width="1.6"/></marker>
+        </defs>
+      </svg>
+    </div>
+    <p class="sub wide">The only difference between radio waves, the colors you see, and X-rays is the <span class="accent">wavelength</span> — how far apart the waves are. "Color" is just your eye's name for a few of those wavelengths.</p>
+  </section>
+
+  <!-- 16 — LIGHT IS ALSO PARTICLES -->
+  <section class="slide">
+    <div class="kicker">The other half of the story</div>
+    <h2>Light is also a stream of <span class="accent">particles.</span></h2>
+    <div class="photonband">
+      <div class="photon" style="top:18%;--c:#bfe0ff;--g:rgba(120,180,255,.8);animation-duration:1.3s;animation-delay:-0.2s"></div>
+      <div class="photon" style="top:34%;animation-duration:1.6s;animation-delay:-0.9s"></div>
+      <div class="photon" style="top:46%;--c:#d8b0ff;--g:rgba(190,140,255,.7);animation-duration:1.35s;animation-delay:-1.4s"></div>
+      <div class="photon" style="top:58%;--c:#fff2b0;animation-duration:1.45s;animation-delay:-0.45s"></div>
+      <div class="photon" style="top:70%;--c:#ffd0a0;--g:rgba(255,170,120,.7);animation-duration:1.7s;animation-delay:-1.1s"></div>
+      <div class="photon" style="top:84%;animation-duration:1.5s;animation-delay:-0.7s"></div>
+      <div class="speedtag">≈ 300,000 km / s</div>
+    </div>
+    <p class="sub wide">Each packet is a <span class="accent">photon</span> — a tiny bundle of energy. Every photon travels at the same speed: about 300,000 kilometers per second, the fastest anything in the universe can go. Its color tells you its energy — blue photons carry more than red ones.</p>
+  </section>
+
+  <!-- 17 — THE SPECTRUM GRAPH -->
+  <section class="slide">
+    <div class="kicker">The whole spectrum</div>
+    <h2>Human sight is a <span class="accent">tiny slice</span> of it.</h2>
+    <div class="fig">
+      <svg viewBox="0 0 1000 410" role="img" aria-label="The electromagnetic spectrum graphed by wavelength">
+        <defs>
+          <linearGradient id="irGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3f1414"/><stop offset="1" stop-color="#9a2d2d"/></linearGradient>
+          <linearGradient id="visGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#e22b2b"/><stop offset="0.2" stop-color="#e8902f"/>
+            <stop offset="0.4" stop-color="#ece23a"/><stop offset="0.6" stop-color="#54c04a"/>
+            <stop offset="0.8" stop-color="#3b7fe2"/><stop offset="1" stop-color="#7b3bd8"/>
+          </linearGradient>
+        </defs>
+
+        <!-- region labels -->
+        <g fill="#cfe0c8" font-size="15" text-anchor="middle">
+          <text x="132" y="58">Radio</text>
+          <text x="316" y="58">Microwave</text>
+          <text x="505" y="58">Infrared</text>
+          <text x="665" y="58">UV</text>
+          <text x="807" y="58">X-ray</text>
+          <text x="929" y="58">Gamma</text>
+        </g>
+
+        <!-- main spectrum bar -->
+        <g>
+          <rect x="40"    y="70" width="184"   height="58" fill="#2b3550"/>
+          <rect x="224"   y="70" width="184"   height="58" fill="#3a3a66"/>
+          <rect x="408"   y="70" width="193.5" height="58" fill="url(#irGrad)"/>
+          <rect x="601.5" y="70" width="14.9"  height="58" fill="url(#visGrad)"/>
+          <rect x="616.4" y="70" width="98.3"  height="58" fill="#6a3aa8"/>
+          <rect x="714.7" y="70" width="184"   height="58" fill="#2f6fa6"/>
+          <rect x="898.7" y="70" width="61.3"  height="58" fill="#2f9a92"/>
+          <rect x="600.5" y="69" width="16.9"  height="60" fill="none" stroke="#7cc242" stroke-width="2.5"/>
+        </g>
+
+        <!-- wavelength axis -->
+        <line x1="40" y1="150" x2="960" y2="150" stroke="#6b7d66" stroke-width="1.5"/>
+        <g stroke="#6b7d66" stroke-width="1.5">
+          <line x1="40"  y1="146" x2="40"  y2="154"/><line x1="224" y1="146" x2="224" y2="154"/>
+          <line x1="408" y1="146" x2="408" y2="154"/><line x1="592" y1="146" x2="592" y2="154"/>
+          <line x1="776" y1="146" x2="776" y2="154"/><line x1="960" y1="146" x2="960" y2="154"/>
+        </g>
+        <g fill="#9fb89a" font-size="14" text-anchor="middle">
+          <text x="40" y="172">1 km</text><text x="224" y="172">1 m</text><text x="408" y="172">1 mm</text>
+          <text x="592" y="172">1 µm</text><text x="776" y="172">1 nm</text><text x="960" y="172">1 pm</text>
+        </g>
+        <text x="40"  y="196" fill="#6b7d66" font-size="13" text-anchor="start">← longer waves</text>
+        <text x="960" y="196" fill="#6b7d66" font-size="13" text-anchor="end">shorter waves →</text>
+
+        <!-- zoom cone from the visible sliver -->
+        <polygon points="600.5,129 617.4,129 700,300 300,300" fill="rgba(124,194,66,0.10)" stroke="rgba(124,194,66,0.45)" stroke-width="1.5" stroke-dasharray="5 4"/>
+
+        <!-- expanded visible rainbow -->
+        <text x="500" y="293" fill="#cfe0c8" font-size="15" text-anchor="middle">what your eyes see, zoomed in</text>
+        <rect x="300" y="300" width="400" height="54" fill="url(#visGrad)" stroke="#7cc242" stroke-width="2" rx="4"/>
+        <g stroke="#6b7d66" stroke-width="1.5">
+          <line x1="300"   y1="354" x2="300"   y2="362"/><line x1="433.3" y1="354" x2="433.3" y2="362"/>
+          <line x1="566.7" y1="354" x2="566.7" y2="362"/><line x1="700"   y1="354" x2="700"   y2="362"/>
+        </g>
+        <g fill="#cfe0c8" font-size="14" text-anchor="middle">
+          <text x="300" y="380">700</text><text x="433.3" y="380">600</text>
+          <text x="566.7" y="380">500</text><text x="700" y="380">400 nm</text>
+        </g>
+      </svg>
+    </div>
+    <p class="sub wide">Every color you've ever seen is squeezed into that one green-outlined band — roughly 400 to 700 nanometers. Everything else is invisible to us, but not to a camera.</p>
+  </section>
+
+  <!-- 18 — LIGHT: CAMERAS SEE MORE -->
+  <section class="slide">
+    <div class="kicker">Cameras see the rest</div>
+    <h2>The invisible bands<br>carry <span class="accent">real signals.</span></h2>
+    <div class="compare">
+      <div class="panel vis">
+        <div class="glyph">🌿</div>
+        <div class="pt">Visible light<small>what your eyes catch</small></div>
+        <div class="pd">A healthy and a stressed leaf can look almost identical.</div>
+      </div>
+      <div class="panel nir">
+        <div class="glyph">🌿✨</div>
+        <div class="pt">Near-infrared<small>what a special camera catches</small></div>
+        <div class="pd">The same leaf glows bright or dim depending on its inner structure and water — long before our eyes notice.</div>
+      </div>
+    </div>
+    <p class="sub wide">Different bands of light reveal different things about the world. For plants, they expose water stress, leaf structure, and photosynthesis — the signals farming needs.</p>
+  </section>
+
+  <!-- 19 — BIG IDEA -->
+  <section class="slide">
+    <div class="kicker">The big idea</div>
+    <h2>We measure crop health at <span class="accent">three scales.</span></h2>
+    <div class="scales">
+      <div class="scard">
+        <div class="ic">🛰️</div>
+        <div class="nm">Satellite</div>
+        <div class="alt">orbital · 100s of km</div>
+        <div class="ds">See whole farms & regions at once</div>
+      </div>
+      <div class="scard">
+        <div class="ic">🚁</div>
+        <div class="nm">Drone</div>
+        <div class="alt">aerial · 10s of m</div>
+        <div class="ds">Map a single field, plant by plant</div>
+      </div>
+      <div class="scard">
+        <div class="ic">🌱</div>
+        <div class="nm">Ground</div>
+        <div class="alt">proximal · centimeters</div>
+        <div class="ds">Clamp one leaf, read its vitals</div>
+      </div>
+    </div>
+    <p class="sub wide">Zoom out for the big picture, zoom in for the truth. In the game you'll switch between all three.</p>
+  </section>
+
+  <!-- 20 — SATELLITE -->
+  <section class="slide">
+    <div class="two">
+      <div class="stack">
+        <div class="globe"><div class="orbit"><span class="sat">🛰️</span></div></div>
+      </div>
+      <div class="txt">
+        <div class="kicker">Scale 1 · Satellite</div>
+        <h2>Eyes in orbit.</h2>
+        <p class="sub">Satellites photograph entire countries every few days — spotting drought, disease, and which fields are thriving from <span class="accent">hundreds of kilometers up.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 21 — DRONE -->
+  <section class="slide">
+    <div class="two">
+      <div class="drone">🚁</div>
+      <div class="txt">
+        <div class="kicker">Scale 2 · Drone</div>
+        <h2>Map every<br>plant in a field.</h2>
+        <p class="sub">A drone flies low with special cameras, building a health map so a farmer knows <span class="accent">exactly which corner</span> needs water or attention.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 22 — GROUND -->
+  <section class="slide">
+    <div class="kicker">Scale 3 · Ground</div>
+    <h2>Take a plant's pulse.</h2>
+    <div class="leafviz">
+      <span>🌿</span><span style="font-size:.6em">→</span><span>🔬</span><span style="font-size:.6em">→</span><span class="accent" style="font-family:ui-monospace,monospace;font-size:.5em;font-weight:800">99 ✓</span>
+    </div>
+    <p class="sub wide">On the ground you clamp a real instrument (the <span class="accent">LI-600</span>) onto a single leaf. It measures how the plant is <em>breathing</em> and <em>photosynthesizing</em> right now — its true health.</p>
+  </section>
+
+  <!-- 23 — THE BANDS WE USE -->
+  <section class="slide">
+    <div class="kicker">The bands we read</div>
+    <h2>Each band shows a<br><span class="accent">different signal.</span></h2>
+    <div class="bands">
+      <div class="band"><div class="chip b-rgb">RGB</div><div class="cap">True color — stress shows as yellowing</div></div>
+      <div class="band"><div class="chip b-nir">NIR</div><div class="cap">Near-infrared — healthy leaves glow bright</div></div>
+      <div class="band"><div class="chip b-thermal">Thermal</div><div class="cap">Heat — thirsty plants run hot</div></div>
+    </div>
+    <p class="sub wide">In the game you'll switch bands at the drone and satellite scales to see what your eyes can't.</p>
+  </section>
+
+  <!-- 24 — NDVI -->
+  <section class="slide">
+    <div class="kicker">The famous one</div>
+    <h2>NDVI — a health score<br>from <span class="accent">two colors.</span></h2>
+    <div class="formula">
+      NDVI = (<span class="nir">NIR</span> − <span class="red">Red</span>) / (<span class="nir">NIR</span> + <span class="red">Red</span>)
+    </div>
+    <p class="sub wide">Healthy plants soak up red light and blast back infrared. Combine the two and you get one number: <span class="accent">green = thriving, red = struggling.</span> It's how scientists watch the whole planet's vegetation.</p>
+  </section>
+
+  <!-- 25 — WHY IT MATTERS -->
+  <section class="slide">
+    <div class="kicker">Why it matters</div>
+    <h2>Less water. More food.<br><span class="accent">Real careers.</span></h2>
+    <p class="sub wide">Catching stress early means farmers grow more food using less water, fuel, and chemicals. The people who build this mix <span class="accent">biology, data, drones, and code</span> — and they're hiring.</p>
+  </section>
+
+  <!-- 26 — CROPS -->
+  <section class="slide">
+    <div class="kicker">In the game</div>
+    <h2>Three crops, three worlds.</h2>
+    <div class="crops">
+      <div class="crop"><div class="glyph">🌽</div><div class="cn">Corn</div><div class="cl">Midwest fields</div></div>
+      <div class="crop"><div class="glyph">🍓</div><div class="cn">Strawberry</div><div class="cl">California beds</div></div>
+      <div class="crop"><div class="glyph">🌰</div><div class="cn">Almond</div><div class="cl">Orchard groves</div></div>
+    </div>
+    <p class="sub wide">Walk the rows, fly the drone, and zoom to orbit — each crop hides stressed plants for you to find.</p>
+  </section>
+
+  <!-- 27 — PLAY -->
+  <section class="slide">
+    <div class="scene"><div class="sky"></div><div class="rows"></div></div>
+    <div class="kicker">Your turn</div>
+    <h1>Go find the<br><span class="accent">sick plants.</span></h1>
+    <div class="keys">
+      <kbd>W A S D</kbd><span class="d">move around the field</span>
+      <kbd>Tab</kbd><span class="d">switch scale — ground / drone / satellite</span>
+      <kbd>1–6</kbd><span class="d">switch the camera's light band</span>
+      <kbd>E</kbd><span class="d">clamp a leaf & take a reading</span>
+      <kbd>F</kbd><span class="d">change the crop</span>
+    </div>
+    <div class="pill">Click the game to begin →</div>
+  </section>
+
+</div>
+
+<script>
+  // Build the two sine waves on the "what is light" slide. Defined by absolute
+  // wavelength (period) and phase so the λ brackets line up on the crests, and
+  // drawn well past the frame so the traveling animation never reveals an edge.
+  function sine(id, x0, x1, cy, amp, period, phase, steps){
+    const el=document.getElementById(id); if(!el) return;
+    let pts=[];
+    for(let k=0;k<=steps;k++){
+      const x=x0+(x1-x0)*k/steps;
+      const y=cy-amp*Math.sin(2*Math.PI*(x-phase)/period);
+      pts.push(x.toFixed(1)+','+y.toFixed(1));
+    }
+    el.setAttribute('points', pts.join(' '));
+  }
+  sine('wlong',  -100, 1960,  80, 36, 312,      60, 640);
+  sine('wshort', -100, 2000, 250, 36, 111.4286, 60, 700);
+
+  const slides=[...document.querySelectorAll('.slide')];
+  const bar=document.getElementById('bar');
+  const count=document.getElementById('count');
+  let i=0;
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    bar.style.width=((i)/(slides.length-1)*100)+'%';
+    count.textContent=(i+1)+' / '+slides.length;
+  }
+  function next(){show(i+1)} function prev(){show(i-1)}
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','ArrowDown','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next()}
+    else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();prev()}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+    else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement)document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.() }
+  });
+  // tap / click right half = next, left half = prev
+  document.addEventListener('click',e=>{ e.clientX < innerWidth*0.28 ? prev() : next() });
+  show(0);
+</script>
+</body>
+</html>

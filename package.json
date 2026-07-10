@@ -1,0 +1,17 @@
+{
+  "name": "crop-health-game",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A 3D web game for teaching crop health measurement across spatial scales (satellite, drone, proximal).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.171.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

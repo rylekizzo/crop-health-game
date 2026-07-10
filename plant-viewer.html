@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><title>strawberry plant viewer</title>
+<style>body{margin:0;background:#20271c;overflow:hidden;font-family:system-ui}
+#hud{position:fixed;top:8px;left:10px;color:#cde3c0;background:rgba(0,0,0,.4);padding:6px 10px;border-radius:5px;font-size:13px}</style></head>
+<body>
+<div id="hud">field canopy material &nbsp;|&nbsp; left: HEALTHY &nbsp;|&nbsp; right: STRESSED</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CROPS } from './src/crops.js';
+import { mulberry32 } from './src/plantParts.js';
+import { makeCanopyMaterial } from './src/plants.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x20271c);
+const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.001, 100);
+camera.position.set(0.45, 0.32, 0.55);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(devicePixelRatio); renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.12, 0); controls.update();
+scene.add(new THREE.HemisphereLight(0xffffff, 0x405030, 1.4));
+const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(1,2,1); scene.add(sun);
+
+const map = new THREE.TextureLoader().load('/assets/textures/strawberry_atlas.png', ()=>{ window.__ready = true; });
+map.colorSpace = THREE.SRGBColorSpace;
+
+// Both plants use the real field canopy material; only the health color differs.
+function makePlant(x, healthColor) {
+  const g = CROPS.strawberry.buildPlant(mulberry32(7));
+  const n = g.attributes.position.count;
+  const rgb = new Float32Array(n*3), tint = new Float32Array(n*3);
+  for (let i=0;i<n;i++){ rgb[i*3]=tint[i*3]=healthColor.r; rgb[i*3+1]=tint[i*3+1]=healthColor.g; rgb[i*3+2]=tint[i*3+2]=healthColor.b; }
+  g.setAttribute('aRgb', new THREE.Float32BufferAttribute(rgb,3));
+  g.setAttribute('aTint', new THREE.Float32BufferAttribute(tint,3));
+  const { material } = makeCanopyMaterial({ map });
+  const m = new THREE.Mesh(g, material); m.position.x = x; scene.add(m);
+}
+makePlant(-0.18, new THREE.Color(0.26, 0.60, 0.16)); // healthy (TRUECOLOR 1.0)
+makePlant( 0.18, new THREE.Color(0.74, 0.62, 0.24)); // stressed (TRUECOLOR 0.0)
+
+addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+(function a(){ requestAnimationFrame(a); renderer.render(scene,camera); })();
+</script></body></html>

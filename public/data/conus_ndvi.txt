@@ -1,0 +1,4 @@
+conus_ndvi.png — MODIS/Terra Level-3 NDVI, monthly composite (Aug 2023), CONUS.
+Source: NASA GIBS (gibs.earthdata.nasa.gov), layer MODIS_Terra_L3_NDVI_Monthly.
+BBOX (lat,lon) = 24,-125 to 50,-66 (EPSG:4326). Fetched once and bundled; the app
+uses it offline. Courtesy NASA EOSDIS GIBS.

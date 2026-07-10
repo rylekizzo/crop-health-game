@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sensing Crop Health</title>
+    <style>
+      :root {
+        --ui-bg: rgba(12, 20, 12, 0.82);
+        --ui-fg: #e8f3e0;
+        --accent: #7cc242;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; overflow: hidden; background: #87b9e0; }
+      canvas { display: block; }
+
+      /* Snap-to-location buttons — only in the satellite scale. */
+      #sat-locations {
+        position: fixed;
+        top: 128px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        gap: 8px;
+        z-index: 6;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      body[data-scale="satellite"] #sat-locations { display: flex; }
+      #sat-locations button {
+        font-size: 12px;
+        padding: 6px 12px;
+        color: #d6ecff;
+        background: rgba(10, 22, 16, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 6px;
+        cursor: pointer;
+        backdrop-filter: blur(3px);
+      }
+      #sat-locations button:hover { background: rgba(34, 58, 40, 0.9); }
+
+      /* Guided mission panel (top-center) — story + objective + hints. */
+      #mission {
+        position: fixed;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(640px, 94vw);
+        color: var(--ui-fg);
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--ui-bg);
+        border: 1px solid rgba(124, 194, 66, 0.35);
+        border-radius: 12px;
+        padding: 10px 16px 12px;
+        z-index: 7;
+        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.42);
+        backdrop-filter: blur(3px);
+        opacity: 0;
+        transform: translateX(-50%) translateY(-8px);
+        transition: opacity 0.25s ease, transform 0.25s ease;
+        pointer-events: none;
+      }
+      #mission.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+      /* Hide the mission while the intro overlay is up or in satellite (sat panel owns the left). */
+      #mission .m-top { display: flex; align-items: baseline; gap: 10px; }
+      #mission .m-eyebrow {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1.4px;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      #mission .m-step {
+        margin-left: auto;
+        font-size: 10px;
+        opacity: 0.55;
+        font-family: ui-monospace, monospace;
+        white-space: nowrap;
+      }
+      #mission .m-obj {
+        font-size: 15.5px;
+        font-weight: 650;
+        line-height: 1.3;
+        margin: 3px 0 5px;
+      }
+      #mission .m-story {
+        font-size: 12.5px;
+        line-height: 1.5;
+        opacity: 0.82;
+      }
+      #mission .m-dots { display: flex; gap: 6px; margin: 9px 0 2px; }
+      #mission .m-dot {
+        width: 22px;
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.16);
+        transition: background 0.3s;
+      }
+      #mission .m-dot.done { background: var(--accent); }
+      #mission .m-dot.active { background: rgba(124, 194, 66, 0.55); }
+      #mission .m-hint {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.09);
+        font-size: 12px;
+        line-height: 1.45;
+        opacity: 0.9;
+        min-height: 1.2em;
+      }
+      #mission .m-hint-key { opacity: 0.6; }
+      #mission .m-hint-icon { filter: saturate(1.2); }
+      #mission .m-hint kbd {
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+        padding: 0 5px;
+        font-family: ui-monospace, monospace;
+        font-size: 10.5px;
+      }
+      #mission.complete { border-color: rgba(124, 194, 66, 0.7); }
+      #mission.complete .m-obj { color: var(--accent); }
+      @keyframes m-flash {
+        0% { box-shadow: 0 0 0 0 rgba(124, 194, 66, 0.55), 0 10px 34px rgba(0, 0, 0, 0.42); }
+        100% { box-shadow: 0 0 0 14px rgba(124, 194, 66, 0), 0 10px 34px rgba(0, 0, 0, 0.42); }
+      }
+      #mission.flash { animation: m-flash 0.7s ease-out; }
+
+      #overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 50% 35%, rgba(20,40,20,0.55), rgba(8,14,8,0.9));
+        color: var(--ui-fg);
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        z-index: 10;
+        cursor: pointer;
+        transition: opacity 0.3s ease;
+      }
+      #overlay.hidden { opacity: 0; pointer-events: none; }
+      #panel {
+        text-align: center;
+        max-width: 540px;
+        padding: 2rem 2.5rem;
+        background: var(--ui-bg);
+        border: 1px solid rgba(124, 194, 66, 0.35);
+        border-radius: 14px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+      }
+      #panel h1 { font-size: 1.7rem; margin-bottom: 0.4rem; letter-spacing: 0.5px; }
+      #panel .accent { color: var(--accent); }
+      #panel p { line-height: 1.5; opacity: 0.85; margin-bottom: 1.2rem; font-size: 0.95rem; }
+      #panel .keys {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.35rem 1rem;
+        text-align: left;
+        font-size: 0.9rem;
+        margin: 0 auto 1.4rem;
+        width: fit-content;
+      }
+      #panel kbd {
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        padding: 1px 7px;
+        font-family: ui-monospace, monospace;
+        font-size: 0.82rem;
+      }
+      #panel .cta {
+        display: inline-block;
+        background: var(--accent);
+        color: #10240a;
+        font-weight: 600;
+        padding: 0.6rem 1.4rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+      }
+
+      #hud {
+        position: fixed;
+        left: 14px;
+        bottom: 14px;
+        color: var(--ui-fg);
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        background: var(--ui-bg);
+        padding: 8px 11px;
+        border-radius: 8px;
+        line-height: 1.5;
+        pointer-events: none;
+        opacity: 0.9;
+        z-index: 5;
+      }
+      #hud .label { opacity: 0.6; }
+
+      #crosshair {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        width: 6px;
+        height: 6px;
+        margin: -3px 0 0 -3px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.85);
+        box-shadow: 0 0 0 1.5px rgba(0,0,0,0.4);
+        pointer-events: none;
+        z-index: 5;
+        transition: background 0.1s, box-shadow 0.1s;
+      }
+      #crosshair.targeting {
+        background: var(--accent);
+        box-shadow: 0 0 0 1.5px rgba(0,0,0,0.5), 0 0 8px var(--accent);
+      }
+
+      #prompt {
+        position: fixed;
+        left: 50%;
+        top: calc(50% + 26px);
+        transform: translateX(-50%);
+        color: var(--ui-fg);
+        font-family: system-ui, sans-serif;
+        font-size: 13px;
+        background: var(--ui-bg);
+        padding: 5px 12px;
+        border-radius: 7px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.12s;
+        z-index: 5;
+        white-space: nowrap;
+      }
+      #prompt.show { opacity: 0.95; }
+      #prompt kbd {
+        background: rgba(255,255,255,0.14);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 4px;
+        padding: 0 5px;
+        font-family: ui-monospace, monospace;
+      }
+
+      #readout {
+        position: fixed;
+        right: 14px;
+        top: 14px;
+        width: 232px;
+        color: var(--ui-fg);
+        font-family: ui-monospace, monospace;
+        background: var(--ui-bg);
+        border: 1px solid rgba(124, 194, 66, 0.3);
+        border-radius: 10px;
+        padding: 12px 14px;
+        z-index: 5;
+        opacity: 0;
+        transform: translateY(-6px);
+        transition: opacity 0.18s, transform 0.18s;
+        pointer-events: none;
+      }
+      #readout.show { opacity: 0.97; transform: translateY(0); }
+      #readout h2 {
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+        color: var(--accent);
+      }
+      #readout .sub { font-size: 10px; opacity: 0.6; margin-bottom: 9px; }
+      #readout .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 3px 0;
+        border-top: 1px solid rgba(255,255,255,0.08);
+      }
+      #readout .row .k { font-size: 11px; opacity: 0.72; }
+      #readout .row .v { font-size: 14px; font-weight: 600; }
+      #readout .row .u { font-size: 9px; opacity: 0.5; margin-left: 3px; }
+      #readout .row.headline .k { color: var(--accent); opacity: 1; }
+      #readout .row.headline .v { color: var(--accent); font-size: 16px; }
+      #readout .tag {
+        display: inline-block;
+        margin-top: 9px;
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: rgba(255,255,255,0.1);
+      }
+
+      /* Drone band legend */
+      #band-legend {
+        position: fixed;
+        right: 14px;
+        top: 14px;
+        width: 250px;
+        color: var(--ui-fg);
+        font-family: system-ui, sans-serif;
+        background: var(--ui-bg);
+        border: 1px solid rgba(124, 194, 66, 0.3);
+        border-radius: 10px;
+        padding: 12px 14px;
+        z-index: 5;
+      }
+      #band-legend .lg-eyebrow {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        opacity: 0.55;
+      }
+      #band-legend h3 {
+        font-size: 15px;
+        margin: 2px 0 10px;
+        color: var(--accent);
+        font-family: ui-monospace, monospace;
+      }
+      #band-legend .lg-bar {
+        height: 12px;
+        border-radius: 3px;
+        border: 1px solid rgba(255,255,255,0.15);
+      }
+      #band-legend .lg-scale {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        font-family: ui-monospace, monospace;
+        opacity: 0.75;
+        margin-top: 4px;
+      }
+      #band-legend .lg-note {
+        font-size: 11.5px;
+        line-height: 1.45;
+        opacity: 0.82;
+        margin: 10px 0 0;
+      }
+      #band-legend .lg-keys {
+        margin-top: 11px;
+        padding-top: 9px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        font-size: 11px;
+        opacity: 0.85;
+      }
+      #band-legend .lg-keys kbd {
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 4px;
+        padding: 0 5px;
+        font-family: ui-monospace, monospace;
+        font-size: 10px;
+      }
+      #band-legend .lg-band { opacity: 0.5; }
+      #band-legend .lg-band.active { opacity: 1; color: var(--accent); }
+
+      /* Spectral graph (drone) */
+      #spectral {
+        position: fixed;
+        right: 14px;
+        bottom: 14px;
+        background: var(--ui-bg);
+        border: 1px solid rgba(124, 194, 66, 0.3);
+        border-radius: 10px;
+        padding: 8px;
+        z-index: 5;
+        display: none;
+      }
+      body[data-scale="drone"] #spectral { display: block; }
+      #spectral canvas { display: block; }
+
+      /* Satellite info panel */
+      #sat-info {
+        position: fixed;
+        left: 14px;
+        top: 14px;
+        width: 244px;
+        color: var(--ui-fg);
+        font-family: system-ui, sans-serif;
+        background: var(--ui-bg);
+        border: 1px solid rgba(124, 194, 66, 0.3);
+        border-radius: 10px;
+        padding: 12px 14px;
+        z-index: 5;
+        display: none;
+      }
+      #sat-info .si-eyebrow {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        opacity: 0.6;
+      }
+      #sat-info h3 {
+        font-size: 15px;
+        margin: 3px 0 8px;
+        color: var(--accent);
+        font-family: ui-monospace, monospace;
+      }
+      #sat-info p { font-size: 11.5px; line-height: 1.5; opacity: 0.85; }
+      #sat-info strong { color: var(--ui-fg); font-weight: 600; }
+
+      /* Scale-based visibility: ground UI on foot; band UI in the air & orbit. */
+      #band-legend, #spectral { display: none; }
+      body[data-scale="drone"] #band-legend,
+      body[data-scale="satellite"] #band-legend,
+      body[data-scale="drone"] #spectral,
+      body[data-scale="satellite"] #spectral { display: block; }
+      body[data-scale="drone"] #crosshair,
+      body[data-scale="drone"] #prompt,
+      body[data-scale="drone"] #readout,
+      body[data-scale="satellite"] #crosshair,
+      body[data-scale="satellite"] #prompt,
+      body[data-scale="satellite"] #readout { display: none !important; }
+      body[data-scale="satellite"] #sat-info { display: block; }
+      body[data-scale="drone"] #hud-alt-row,
+      body[data-scale="satellite"] #hud-alt-row { display: block; }
+      body:not([data-scale="drone"]):not([data-scale="satellite"]) #hud-alt-row { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="sat-locations">
+      <button data-lat="42.03" data-lon="-93.58">Corn Belt, IA</button>
+      <button data-lat="34.95" data-lon="-120.43">Santa Maria, CA</button>
+      <button data-lat="38.68" data-lon="-121.77">Sacramento, CA</button>
+    </div>
+    <div id="overlay">
+      <div id="panel">
+        <h1><span class="accent">Sensing</span> Crop Health</h1>
+        <p>
+          A grower reports plants struggling in this field, but can't say why or how far it
+          spreads. As a crop scout, you'll diagnose it up close with a leaf-clamp porometer,
+          then take to the air and orbit to see its true extent — learning why scale matters.
+          Follow the mission at the top of the screen.
+        </p>
+        <div class="keys">
+          <kbd>W A S D</kbd><span>Move</span>
+          <kbd>Mouse</kbd><span>Look</span>
+          <kbd>E</kbd><span>Clamp &amp; measure leaf (ground)</span>
+          <kbd>Tab</kbd><span>Cycle ground → drone → satellite</span>
+          <kbd>1–6</kbd><span>Band: RGB · NIR · Thermal · NDVI · NDRE · SIF</span>
+          <kbd>Space / C</kbd><span>Drone ascend / descend</span>
+          <kbd>F</kbd><span>Switch crop (corn ⇄ strawberry ⇄ almond)</span>
+          <kbd>H</kbd><span>Hint for the current mission step</span>
+          <kbd>Esc</kbd><span>Release cursor</span>
+        </div>
+        <span class="cta">Click to enter the field</span>
+      </div>
+    </div>
+
+    <div id="mission">
+      <div class="m-top">
+        <span class="m-eyebrow" id="m-eyebrow">Mission</span>
+        <span class="m-step" id="m-step"></span>
+      </div>
+      <div class="m-obj" id="m-obj"></div>
+      <div class="m-story" id="m-story"></div>
+      <div class="m-dots" id="m-dots"></div>
+      <div class="m-hint" id="m-hint"></div>
+    </div>
+
+    <div id="crosshair"></div>
+    <div id="prompt"><kbd>E</kbd> clamp leaf &amp; measure</div>
+
+    <div id="readout">
+      <h2>LI-600 reading</h2>
+      <div class="sub">proximal · single leaf</div>
+      <div class="row headline">
+        <span class="k">ETR <span style="opacity:.6">(photosynthesis)</span></span>
+        <span><span class="v" id="r-etr">–</span><span class="u">µmol m⁻² s⁻¹</span></span>
+      </div>
+      <div class="row">
+        <span class="k">gsw <span style="opacity:.6">(water status)</span></span>
+        <span><span class="v" id="r-gsw">–</span><span class="u">mol m⁻² s⁻¹</span></span>
+      </div>
+      <div class="row">
+        <span class="k">ΦPSII</span>
+        <span><span class="v" id="r-phi">–</span></span>
+      </div>
+      <div class="row">
+        <span class="k">Fv′/Fm′</span>
+        <span><span class="v" id="r-fvfm">–</span></span>
+      </div>
+      <span class="tag" id="r-tag">—</span>
+    </div>
+
+    <div id="hud">
+      <div><span class="label">crop:</span> <span id="hud-crop">Corn</span></div>
+      <div><span class="label">scale:</span> <span id="hud-scale">proximal (ground)</span></div>
+      <div><span class="label">pos:</span> <span id="hud-pos">0, 0</span></div>
+      <div id="hud-alt-row"><span class="label">alt:</span> <span id="hud-alt">–</span> m</div>
+      <div><span class="label">fps:</span> <span id="hud-fps">–</span></div>
+    </div>
+
+    <div id="band-legend">
+      <div class="lg-head">
+        <span class="lg-eyebrow">drone sensor band</span>
+        <h3 id="lg-title">RGB · true color</h3>
+      </div>
+      <div id="lg-bar" class="lg-bar"></div>
+      <div class="lg-scale"><span id="lg-lo">stressed</span><span id="lg-hi">healthy</span></div>
+      <p id="lg-note" class="lg-note"></p>
+      <div id="lg-keys" class="lg-keys"></div>
+    </div>
+
+    <div id="spectral">
+      <canvas id="spectral-canvas"></canvas>
+    </div>
+
+    <div id="sat-info">
+      <div class="si-eyebrow">🛰 satellite · orbital</div>
+      <h3>United States · NDVI</h3>
+      <p>
+        Real <strong>MODIS satellite NDVI</strong> draped over the U.S., with state
+        borders. <strong>Hover</strong> a state to read its name and average NDVI;
+        <strong>drag</strong> to orbit, <strong>scroll</strong> to zoom in to
+        county-scale detail. A single field is just a speck from here.
+      </p>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

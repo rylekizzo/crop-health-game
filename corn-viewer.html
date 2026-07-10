@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><title>corn viewer</title>
+<style>body{margin:0;background:#20271c;overflow:hidden;font-family:system-ui}
+#hud{position:fixed;top:8px;left:10px;color:#cde3c0;background:rgba(0,0,0,.4);padding:6px 10px;border-radius:5px;font-size:13px}</style></head>
+<body>
+<div id="hud">corn plant — tassel detail</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CROPS } from './src/crops.js';
+import { mulberry32 } from './src/plantParts.js';
+import { makeCanopyMaterial } from './src/plants.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x20271c);
+const camera = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.001, 100);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(devicePixelRatio); renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x405030, 1.4));
+const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(1,2,1); scene.add(sun);
+
+const g = CROPS.corn.buildPlant(mulberry32(3));
+const n = g.attributes.position.count;
+const rgb = new Float32Array(n*3), tint = new Float32Array(n*3);
+const hc = new THREE.Color(0.30,0.55,0.18);
+for (let i=0;i<n;i++){ rgb[i*3]=tint[i*3]=hc.r; rgb[i*3+1]=tint[i*3+1]=hc.g; rgb[i*3+2]=tint[i*3+2]=hc.b; }
+g.setAttribute('aRgb', new THREE.Float32BufferAttribute(rgb,3));
+g.setAttribute('aTint', new THREE.Float32BufferAttribute(tint,3));
+const { material } = makeCanopyMaterial({});
+scene.add(new THREE.Mesh(g, material));
+
+// frame the tassel at the top of the plant
+const box = new THREE.Box3().setFromObject(scene);
+const top = box.max.y;
+controls.target.set(0, top - 0.15, 0);
+camera.position.set(0.55, top - 0.02, 0.55);
+controls.update();
+window.__topY = top;
+
+addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+(function a(){ requestAnimationFrame(a); renderer.render(scene,camera); })();
+</script></body></html>
