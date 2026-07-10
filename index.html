@@ -98,6 +98,34 @@
       }
 
       body[data-scale="satellite"] #sat-locations { display: none; }
+
+      /* Persistent drone flight controls, shown only while flying. */
+      #drone-controls {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        z-index: 6;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 12px;
+        color: var(--ui-fg);
+        background: var(--ui-bg);
+        border: 1px solid rgba(124, 194, 66, 0.3);
+        border-radius: 8px;
+        padding: 6px 12px;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+      body[data-scale="drone"] #drone-controls { display: block; }
+      #drone-controls kbd {
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+        padding: 0 5px;
+        font-family: ui-monospace, monospace;
+        font-size: 10.5px;
+      }
       #sat-locations button {
         font-size: 12px;
         padding: 6px 12px;
@@ -677,6 +705,10 @@
       <div class="row headline"><span class="k">Aphids</span><span class="v" id="i-level">–</span></div>
       <div class="row"><span class="k">on the trap</span><span class="v" id="i-count">–</span></div>
       <span class="tag" id="i-tag">—</span>
+    </div>
+
+    <div id="drone-controls">
+      <kbd>Space</kbd> up &nbsp; <kbd>C</kbd> down &nbsp; <kbd>W A S D</kbd> fly &nbsp; <kbd>Tab</kbd> land
     </div>
 
     <div id="crosshair"></div>

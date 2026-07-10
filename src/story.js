@@ -266,20 +266,22 @@ export class Mission {
 
   /** Game finished: turn the panel into a persistent free-roam legend. */
   freeRoam() {
-    this.started = false;
+    // Keep `started` true so the pointer-lock handler never restarts level 1.
+    this.started = true;
     this.finished = true;
     clearTimeout(this._hintTimer);
     this._hideDialogue();
     this.awaiting = false;
     if (this.elMeter) this.elMeter.style.display = 'none';
     this.elEyebrow.textContent = 'Free roam';
-    this.elStep.textContent = '✓ survey complete';
-    this.elObj.textContent = 'Explore any field, at any scale';
+    this.elStep.textContent = '✓ campaign complete';
+    this.elObj.textContent = 'Nice work — the map is yours';
     this.elStory.textContent =
-      'The campaign is done. Roam wherever you like and try every instrument.';
+      'You helped growers across the state and the whole country find and fix trouble at every ' +
+      'scale — from a single leaf, to a field, to the nation. Explore freely now and try any tool.';
     this.elDots.innerHTML = '';
     this.elHint.innerHTML =
-      '<span class="m-hint-key"><kbd>F</kbd> change field &nbsp;·&nbsp; <kbd>Tab</kbd> board the drone anywhere &nbsp;·&nbsp; <kbd>V</kbd> regional satellite &nbsp;·&nbsp; <kbd>1–6</kbd> bands</span>';
+      '<span class="m-hint-key"><kbd>F</kbd> switch field &nbsp;·&nbsp; <kbd>Tab</kbd> board / land the drone (anywhere) &nbsp;·&nbsp; <kbd>V</kbd> regional satellite &nbsp;·&nbsp; <kbd>1–6</kbd> sensor bands</span>';
     this.el.classList.remove('complete');
     this.el.classList.add('show');
   }

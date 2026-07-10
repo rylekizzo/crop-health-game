@@ -576,7 +576,9 @@ window.addEventListener('mouseup', () => { dropping = false; });
 
 controller.controls.addEventListener('lock', () => {
   overlay.classList.add('hidden');
-  if (!mission.started) mission.startLevel('corn'); // begin level 1 on first entry
+  // Begin level 1 only on the very first entry — never after the campaign is
+  // done (re-locking on the way into free roam must not restart corn).
+  if (!mission.started && !gameComplete) mission.startLevel('corn');
 });
 controller.controls.addEventListener('unlock', () => {
   // Own-view scales (satellite/regional) run cursor-free — don't pop the overlay.
