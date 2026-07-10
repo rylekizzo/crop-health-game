@@ -131,7 +131,7 @@ export function buildPests(basePos, health, bounds) {
   // when looking straight down. ---
   const DROP_N = 260;
   const drop = new THREE.InstancedMesh(
-    new THREE.SphereGeometry(0.07, 6, 5),
+    new THREE.SphereGeometry(0.03, 6, 5),
     new THREE.MeshStandardMaterial({ roughness: 0.5 }),
     DROP_N
   );
@@ -146,7 +146,7 @@ export function buildPests(basePos, health, bounds) {
   drop.instanceColor.needsUpdate = true;
   group.add(drop);
   const ds = [];
-  for (let i = 0; i < DROP_N; i++) ds.push({ active: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, spin: 2 + Math.random() * 5, sc: 0.7 + Math.random() * 0.8 });
+  for (let i = 0; i < DROP_N; i++) ds.push({ active: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, spin: 2 + Math.random() * 5, sc: 0.55 + Math.random() * 0.6 });
   let dropCursor = 0, dropAccum = 0;
 
   const treated = new Uint8Array(Math.max(1, cells.length));
@@ -198,21 +198,23 @@ export function buildPests(basePos, health, bounds) {
       }
       if (anyDrop) drop.instanceMatrix.needsUpdate = true;
     },
-    /** Stream a wide cloud of falling ladybugs from (x,y,z) while released. */
+    /** Stream ladybugs straight from the drone (x,y,z); they spread as they fall. */
     emit(x, y, z, dt) {
       dropAccum += dt;
       while (dropAccum >= 0.016) {
         dropAccum -= 0.016;
-        for (let q = 0; q < 3; q++) { // several specks per tick → a dense cloud
+        for (let q = 0; q < 3; q++) { // several specks per tick → a dense stream
           const s = ds[dropCursor];
           dropCursor = (dropCursor + 1) % DROP_N;
           s.active = true;
-          s.x = x + (Math.random() - 0.5) * 5.5;   // wide horizontal spread
-          s.y = y - 0.1 - Math.random() * 0.6;     // start just under the drone, in view
-          s.z = z + (Math.random() - 0.5) * 5.5;
-          s.vx = (Math.random() - 0.5) * 1.8;
-          s.vy = -1.0 - Math.random() * 1.2;
-          s.vz = (Math.random() - 0.5) * 1.8;
+          // Source tightly from the drone body so the stream is always in view,
+          // then let outward velocity fan it into a widening cloud as it falls.
+          s.x = x + (Math.random() - 0.5) * 0.25;
+          s.y = y - 0.15;
+          s.z = z + (Math.random() - 0.5) * 0.25;
+          s.vx = (Math.random() - 0.5) * 2.4;
+          s.vy = -0.8 - Math.random() * 0.9;
+          s.vz = (Math.random() - 0.5) * 2.4;
         }
       }
     },
