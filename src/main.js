@@ -8,6 +8,7 @@ import { Drone } from './drone.js';
 import { SatelliteView } from './satellite.js';
 import { LI600, VIEW_LAYER } from './li600.js';
 import { truePhysiology } from './healthField.js';
+import { buildPests } from './pests.js';
 import { BANDS, BAND_BY_ID, bandColor, legendGradient } from './bands.js';
 import { drawSpectralGraph } from './spectralGraph.js';
 import { Mission } from './story.js';
@@ -49,6 +50,9 @@ let field, health, basePos, walkBound, flyBound;
 // Stress-meter bounds, recomputed per field: the worst plant's stress and the
 // "close to but below it" threshold the player must reach by measuring.
 let worstStress = 0.9, stressThreshold = 0.8, maxStressMeasured = 0;
+let pests = null;        // strawberry aphid system (flags, aphids, ladybugs), null otherwise
+let dropping = false;    // holding the release button in the strawberry drone
+let inDialogue = false;  // a level-completion dialogue is open
 let scenery = buildScenery(scene, CROPS[CROP_IDS[cropIndex]].setting, env);
 if (scenery.walkBound != null) walkBound = scenery.walkBound;
 
@@ -75,6 +79,13 @@ function installField(cropId) {
   worstStress = 1 - minH;
   stressThreshold = worstStress * 0.88; // reach close to, but not exactly, the worst
   maxStressMeasured = 0;
+
+  // Aphid pest system only on the strawberry level.
+  if (pests) { scene.remove(pests.group); pests.dispose(); pests = null; }
+  if (cropId === 'strawberry') {
+    pests = buildPests(basePos, health, field.userData.fieldBounds);
+    scene.add(pests.group);
+  }
 }
 installField(CROP_IDS[cropIndex]);
 
@@ -88,7 +99,7 @@ controller.setDrone(drone);
 
 // The drone is a physical object: it sits landed on the ground a bit behind and
 // off-centre from the player's start. You must be near it to board it (Tab).
-const DRONE_HOME = new THREE.Vector3(6, 0.15, 35);
+const DRONE_HOME = new THREE.Vector3(7, 0.15, 32); // within every crop's walk bound
 const DRONE_NEAR = 5.0; // metres
 
 function landDrone() {
@@ -218,6 +229,23 @@ const mission = new Mission();
 // lowest-NDVI states on the CONUS map.
 satellite.onExtremesFound = () => mission.sync({ satExtremes: true });
 
+// A completion dialogue opened → release the cursor so its button is clickable
+// (without popping the intro overlay).
+mission.onDialogueOpen = () => {
+  inDialogue = true;
+  if (controller.locked) controller.controls.unlock();
+};
+// The dialogue's button was pressed → advance to the next level (or finish).
+mission.onLevelComplete = (next) => {
+  inDialogue = false;
+  if (next === 'strawberry') {
+    setScale('proximal');
+    goToCrop(CROP_IDS.indexOf('strawberry'));
+    mission.startLevel('strawberry');
+  }
+  controller.lock(); // resume play (this click is a user gesture)
+};
+
 function renderBandKeys(activeId) {
   lgKeys.innerHTML = BANDS.map(
     (b) => `<span class="lg-band${b.id === activeId ? ' active' : ''}"><kbd>${b.key}</kbd> ${b.id.toUpperCase()}</span>`
@@ -276,6 +304,7 @@ function setScale(next) {
     li600.group.visible = false;
     li600.release();
     readout.classList.remove('show');
+    inspectPanel.classList.remove('show');
     ring.visible = false;
     measuredInstance = -1;
     setBand(bandId); // apply current band to canopy + globe tile
@@ -303,7 +332,11 @@ function disposeObject(obj) {
 }
 
 function cycleCrop() {
-  const nextIndex = (cropIndex + 1) % CROP_IDS.length;
+  goToCrop((cropIndex + 1) % CROP_IDS.length);
+}
+
+function goToCrop(nextIndex) {
+  if (nextIndex === cropIndex) return;
   const oldField = field;
 
   // Build the new field FIRST. installField reassigns `field` only on success,
@@ -334,6 +367,7 @@ function cycleCrop() {
   // Reset interaction state (instance ids are no longer valid).
   li600.release();
   readout.classList.remove('show');
+  inspectPanel.classList.remove('show');
   ring.visible = false;
   measuredInstance = -1;
   aimedInstance = -1;
@@ -347,6 +381,12 @@ const elGsw = document.getElementById('r-gsw');
 const elPhi = document.getElementById('r-phi');
 const elFvfm = document.getElementById('r-fvfm');
 const elTag = document.getElementById('r-tag');
+
+// Pest-inspection panel (strawberry).
+const inspectPanel = document.getElementById('inspect');
+const iLevel = document.getElementById('i-level');
+const iCount = document.getElementById('i-count');
+const iTag = document.getElementById('i-tag');
 
 li600.onResult = (v) => {
   elETR.textContent = v.etr.toFixed(0);
@@ -363,6 +403,7 @@ li600.onResult = (v) => {
   elTag.style.color = '#10240a';
   ring.material.color.set(color);
   readout.classList.add('show');
+  inspectPanel.classList.remove('show');
   maxStressMeasured = Math.max(maxStressMeasured, 1 - h);
   mission.sync({
     measured: true,
@@ -372,6 +413,25 @@ li600.onResult = (v) => {
     meterThreshold: stressThreshold,
   });
 };
+
+// Pest scouting (strawberry): inspect a plant for aphids with I.
+function inspectPlant(idx) {
+  const h = health[idx];
+  const count = Math.max(0, Math.round((1 - h) * 320 - 20));
+  let level, tag, color;
+  if (h < 0.3) { level = 'Heavy'; tag = 'Aphids — heavy infestation'; color = '#c0392b'; }
+  else if (h < 0.45) { level = 'Moderate'; tag = 'Aphids — infested'; color = '#d87b3a'; }
+  else if (h < 0.65) { level = 'Light'; tag = 'A few aphids'; color = '#d8c13a'; }
+  else { level = 'None'; tag = 'Clean'; color = '#8bc53f'; }
+  iLevel.textContent = level;
+  iCount.textContent = count;
+  iTag.textContent = tag;
+  iTag.style.background = color;
+  iTag.style.color = '#10240a';
+  inspectPanel.classList.add('show');
+  readout.classList.remove('show');
+  if (h < 0.45) mission.sync({ inspectedPest: true });
+}
 
 // --- Input ---
 document.addEventListener('keydown', (e) => {
@@ -396,6 +456,11 @@ document.addEventListener('keydown', (e) => {
     if (b) setBand(b.id);
     return;
   }
+  // proximal: inspect a plant for pests (strawberry level)
+  if (e.code === 'KeyI' && !e.repeat) {
+    if (scale === 'proximal' && li600.state === 'idle' && aimedInstance >= 0) inspectPlant(aimedInstance);
+    return;
+  }
   // proximal: clamp / new reading
   if (e.code === 'KeyE' && !e.repeat) {
     if (li600.state === 'idle' && aimedInstance >= 0) {
@@ -414,15 +479,19 @@ overlay.addEventListener('click', () => controller.lock());
 renderer.domElement.addEventListener('click', () => {
   if (scale !== 'satellite' && !controller.locked) controller.lock();
 });
+// Hold the mouse button to release ladybugs from the strawberry drone.
+renderer.domElement.addEventListener('mousedown', (e) => {
+  if (e.button === 0 && scale === 'drone' && CROP_IDS[cropIndex] === 'strawberry') dropping = true;
+});
+window.addEventListener('mouseup', () => { dropping = false; });
+
 controller.controls.addEventListener('lock', () => {
   overlay.classList.add('hidden');
-  if (!mission.started) {
-    mission.start();
-    mission.el.classList.add('show'); // reveal the mission panel once in the field
-  }
+  if (!mission.started) mission.startLevel('corn'); // begin level 1 on first entry
 });
 controller.controls.addEventListener('unlock', () => {
-  if (scale !== 'satellite') overlay.classList.remove('hidden');
+  // Don't pop the intro overlay while a completion dialogue is open.
+  if (scale !== 'satellite' && !inDialogue) overlay.classList.remove('hidden');
 });
 
 // --- Resize ---
@@ -452,6 +521,14 @@ function animate() {
   } else {
     controller.update(dt, scale === 'drone' ? flyBound : walkBound);
     scenery.update(dt);
+    if (pests) {
+      pests.update(dt);
+      // Strawberry drone: hold the button to release ladybugs over the patch.
+      if (scale === 'drone' && dropping) {
+        const cov = pests.treatAt(drone.group.position.x, drone.group.position.z, 7.0);
+        mission.sync({ coverage: cov });
+      }
+    }
   }
 
   if (scale === 'proximal') {
@@ -467,7 +544,11 @@ function animate() {
       } else {
         aimedInstance = controller.locked ? aimedPlant() : -1;
         crosshair.classList.toggle('targeting', aimedInstance >= 0);
-        if (aimedInstance >= 0) prompt.innerHTML = '<kbd>E</kbd> clamp leaf &amp; measure';
+        if (aimedInstance >= 0) {
+          prompt.innerHTML = CROP_IDS[cropIndex] === 'strawberry'
+            ? '<kbd>I</kbd> inspect for pests'
+            : '<kbd>E</kbd> clamp leaf &amp; measure';
+        }
         prompt.classList.toggle('show', aimedInstance >= 0);
         if (measuredInstance < 0) setRing(aimedInstance, aimedInstance >= 0 ? '#ffffff' : null);
       }

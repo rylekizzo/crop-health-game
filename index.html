@@ -158,6 +158,77 @@
       }
       #mission.flash { animation: m-flash 0.7s ease-out; }
 
+      /* Level-completion dialogue */
+      #dialogue {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(6, 12, 8, 0.72);
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      #dialogue.show { display: flex; }
+      #dialogue .d-card {
+        max-width: 560px;
+        width: 90%;
+        background: var(--ui-bg);
+        color: var(--ui-fg);
+        border: 1px solid rgba(124, 194, 66, 0.5);
+        border-radius: 14px;
+        padding: 24px 28px;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+      }
+      #dialogue h2 { color: var(--accent); font-size: 1.35rem; margin-bottom: 12px; }
+      #dialogue .d-body p { font-size: 0.95rem; line-height: 1.55; opacity: 0.9; margin-bottom: 10px; }
+      #dialogue .d-actions { text-align: right; margin-top: 18px; }
+      #dialogue button {
+        background: var(--accent);
+        color: #10240a;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 1.3rem;
+        font-size: 0.95rem;
+        cursor: pointer;
+      }
+      #dialogue button:hover { filter: brightness(1.08); }
+
+      /* Pest-inspection readout (strawberry) — reuses the readout look */
+      #inspect {
+        position: fixed;
+        right: 14px;
+        top: 14px;
+        width: 232px;
+        color: var(--ui-fg);
+        font-family: ui-monospace, monospace;
+        background: var(--ui-bg);
+        border: 1px solid rgba(214, 123, 58, 0.5);
+        border-radius: 10px;
+        padding: 12px 14px;
+        z-index: 5;
+        opacity: 0;
+        transform: translateY(-6px);
+        transition: opacity 0.18s, transform 0.18s;
+        pointer-events: none;
+      }
+      #inspect.show { opacity: 0.97; transform: translateY(0); }
+      #inspect h2 { font-size: 13px; letter-spacing: 0.5px; margin-bottom: 2px; color: #e0975a; }
+      #inspect .sub { font-size: 10px; opacity: 0.6; margin-bottom: 9px; }
+      #inspect .row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        padding: 3px 0; border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      #inspect .row .k { font-size: 11px; opacity: 0.72; }
+      #inspect .row .v { font-size: 14px; font-weight: 600; }
+      #inspect .row.headline .k { color: #e0975a; opacity: 1; }
+      #inspect .row.headline .v { color: #e0975a; font-size: 16px; }
+      #inspect .tag {
+        display: inline-block; margin-top: 9px; font-size: 10px;
+        padding: 2px 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.1);
+      }
+
       #overlay {
         position: fixed;
         inset: 0;
@@ -492,6 +563,22 @@
         <div class="m-meter-label" id="m-meter-label"></div>
       </div>
       <div class="m-hint" id="m-hint"></div>
+    </div>
+
+    <div id="dialogue">
+      <div class="d-card">
+        <h2 id="d-title"></h2>
+        <div class="d-body" id="d-body"></div>
+        <div class="d-actions"><button id="d-button">Continue</button></div>
+      </div>
+    </div>
+
+    <div id="inspect">
+      <h2>Pest scouting</h2>
+      <div class="sub">proximal · sticky trap + leaf</div>
+      <div class="row headline"><span class="k">Aphids</span><span class="v" id="i-level">–</span></div>
+      <div class="row"><span class="k">on the trap</span><span class="v" id="i-count">–</span></div>
+      <span class="tag" id="i-tag">—</span>
     </div>
 
     <div id="crosshair"></div>

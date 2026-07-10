@@ -1,26 +1,24 @@
 /**
- * Guided mission for the agtech learning demo (corn level).
+ * Guided, multi-level mission for the agtech learning demo.
  *
- * The arc: establish a healthy baseline on the ground, then hunt the stress down
- * the rows while a meter tracks the worst plant found, then walk back to the
- * parked drone, board it, and see the streak from the air in NDVI.
- *
- * Beats complete from real gameplay reported via sync(): leaf measurements
- * (health / maxStress), scale changes, and band selection. The mission only reads
- * game state — it never drives it. (Satellite is reached another way, added later.)
+ * Each level (corn, strawberry) has its own beats and a completion dialogue.
+ * When a level's beats are all done, a dialogue box explains the diagnosis and
+ * (for corn) sends the player to the next level. Beats complete from real
+ * gameplay reported via sync(); the mission only reads state, never drives it.
  */
 
 const isVigorIndex = (band) => band === 'ndvi' || band === 'ndre';
 
-const BEATS = [
+// --- Level 1: corn — nitrogen deficiency ----------------------------------
+const CORN_BEATS = [
   {
     eyebrow: 'Baseline · ground',
     objective: 'Take a baseline — clamp a healthy (green) leaf and press E',
     story:
       'A grower says plants in this field are struggling, but not everywhere. Before you can ' +
-      'spot the problem you need to know what healthy looks like. You carry an LI-600 porometer: ' +
-      'it clamps a leaf and measures how it is actually working — photosynthesis (ETR), water ' +
-      'loss (gsw), and photosystem efficiency. Read a good green plant near the edge first.',
+      'spot the problem you need to know what healthy looks like. Your LI-600 porometer clamps a ' +
+      'leaf and measures how it is working — photosynthesis (ETR), water loss (gsw), and ' +
+      'photosystem efficiency. Read a good green plant near the edge first.',
     hint: 'Move with W A S D, look with the mouse. Aim at a green plant until the crosshair turns green, then press E.',
     done: (s) => s.health != null && s.health > 0.6,
   },
@@ -28,20 +26,20 @@ const BEATS = [
     eyebrow: 'Diagnose · ground',
     objective: 'Find the worst of it — measure down the rows until the stress meter fills to the mark',
     story:
-      'Now hunt down the problem. The stress runs in a streak that gets worse the deeper you go ' +
-      'into the field. Keep clamping leaves — the meter below tracks the most stressed plant ' +
-      'you have found. Push in until it reaches the marker.',
+      'Now hunt the problem down. A pale streak runs into the field, worse the deeper you go. ' +
+      'Keep clamping leaves — the meter below tracks the most stressed plant you have found. ' +
+      'Push in until it reaches the marker.',
     hint: 'The sickest rows are deep in the field, away from where you started. Keep measuring (E); the meter remembers your worst reading.',
-    meter: true,
+    meter: 'stress',
     done: (s) => s.maxStress != null && s.meterThreshold != null && s.maxStress >= s.meterThreshold,
   },
   {
     eyebrow: 'Take off',
     objective: 'Board the drone — walk back to it near your start and press Tab',
     story:
-      'You have confirmed the stress leaf by leaf, but not its shape or extent — measuring every ' +
-      'plant by hand would take days. Time for altitude. Your drone is parked on the ground a ' +
-      'little behind and to the side of where you started. Stand next to it to board it.',
+      'You have confirmed the stress leaf by leaf, but not its shape. Time for altitude. Your drone ' +
+      'is parked on the ground a little behind and to the side of where you started. Stand next to ' +
+      'it to board it.',
     hint: 'Head back toward your start; the drone sits just behind and off to one side. Get close and press Tab (Tab again lands it).',
     done: (s) => s.scale === 'drone',
   },
@@ -49,25 +47,77 @@ const BEATS = [
     eyebrow: 'Drone · aerial',
     objective: 'Map it — switch to NDVI (press 4) and spot the streak from the air',
     story:
-      'From the air you cover the whole field at once. A vegetation index like NDVI turns invisible ' +
-      'stress into a map: green = vigorous, red = struggling. The rows you measured on the ground ' +
-      'now show up as a single red streak — its true shape and size, which no single leaf could tell you.',
-    hint: 'Press 4 for NDVI. Fly out over the field (W A S D, Space / C for altitude) and find the red streak.',
+      'From the air you cover the whole field at once. NDVI turns invisible stress into a map: ' +
+      'green = vigorous, red = struggling. The rows you measured now show up as a single red streak — ' +
+      'its true shape, which no single leaf could tell you.',
+    hint: 'Press 4 for NDVI. Fly out over the field and find the red streak.',
     done: (s) => s.scale === 'drone' && isVigorIndex(s.band),
   },
 ];
 
-const FINALE = {
-  eyebrow: 'Nice work',
-  objective: 'Ground truth, meet the big picture 🎉',
-  story:
-    'You diagnosed the streak leaf by leaf, then rose up to see its whole shape from the air — the ' +
-    'porometer is accurate but short-reach, the drone maps the field in seconds. Keep exploring: ' +
-    'fly the field in other bands (Thermal 3, NDRE 5), or land (Tab) and measure more rows.',
-  hint: null,
+const CORN_COMPLETE = {
+  title: 'It was the nitrogen',
+  body:
+    "That pale streak is textbook nitrogen deficiency — a single line of chlorotic, low-vigor rows. " +
+    "The cause wasn't drought or disease: the rig that side-dressed nitrogen fertilizer malfunctioned " +
+    "along this one pass, starving those rows while the rest of the field got its full dose. Ground " +
+    "truth plus the aerial map pinned it down.\n\n" +
+    "Next up: a strawberry field with a very different kind of trouble.",
+  button: 'Go to the strawberry field →',
+  next: 'strawberry',
 };
 
-const AUTO_HINT_MS = 30000; // reveal the hint automatically if a beat stalls this long
+// --- Level 2: strawberry — aphid infestation ------------------------------
+const BERRY_BEATS = [
+  {
+    eyebrow: 'Scout · ground',
+    objective: 'Inspect an infested plant — aim at one crawling with aphids and press I',
+    story:
+      "This grower's strawberries are wilting in patches. Yellow sticky traps are staked through the " +
+      "field to catch pests — near the sick plants they're black with tiny insects, and you can see " +
+      "them swarming the leaves. Aim at a badly infested plant and press I to identify the culprit.",
+    hint: 'Walk toward the plants covered in bugs (the sticky traps there are dark with them). Aim at one until the crosshair turns green and press I.',
+    done: (s) => s.inspectedPest === true,
+  },
+  {
+    eyebrow: 'Take off',
+    objective: 'Board the drone — walk to it and press Tab to treat from the air',
+    story:
+      'Aphids: soft-bodied sap-suckers that breed explosively and spread fast. Spraying by hand ' +
+      'would take forever and miss spots. Take the drone up to treat the whole infested patch at once.',
+    hint: 'The drone is parked near where you started, a little behind and to the side. Stand next to it and press Tab.',
+    done: (s) => s.scale === 'drone',
+  },
+  {
+    eyebrow: 'Drone · release',
+    objective: 'Cover the infestation — fly over the sick plants and hold Click to release',
+    story:
+      'Fly low over the infested patch and hold the mouse button to release your treatment. Sweep ' +
+      'back and forth until every infested plant is covered — the bar tracks your progress.',
+    hint: 'Descend with C to get low over the red/wilting patch, then hold the left mouse button and fly across it. Keep going until the bar is full.',
+    meter: 'coverage',
+    done: (s) => (s.coverage || 0) >= 0.999,
+  },
+];
+
+const BERRY_COMPLETE = {
+  title: 'Organic pest control: ladybugs',
+  body:
+    "Those plants were under attack by aphids. On a conventional farm you might reach for an " +
+    "insecticide — but these are certified organic strawberries, so synthetic pesticides are off " +
+    "the table. What you released instead were ladybugs: a single one eats dozens of aphids a day, " +
+    "and they're a classic biological control. They'll knock the infestation down and keep it in " +
+    "check — no chemicals required.",
+  button: 'Finish',
+  next: null,
+};
+
+const LEVELS = {
+  corn: { beats: CORN_BEATS, complete: CORN_COMPLETE },
+  strawberry: { beats: BERRY_BEATS, complete: BERRY_COMPLETE },
+};
+
+const AUTO_HINT_MS = 30000;
 
 export class Mission {
   constructor() {
@@ -83,33 +133,61 @@ export class Mission {
     this.elMeterThresh = document.getElementById('m-meter-thresh');
     this.elMeterLabel = document.getElementById('m-meter-label');
 
+    // Completion dialogue modal.
+    this.dlg = document.getElementById('dialogue');
+    this.dlgTitle = document.getElementById('d-title');
+    this.dlgBody = document.getElementById('d-body');
+    this.dlgBtn = document.getElementById('d-button');
+    if (this.dlgBtn) this.dlgBtn.addEventListener('click', () => this._dialogueContinue());
+
+    this.levelId = 'corn';
+    this.beats = CORN_BEATS;
+    this.complete = CORN_COMPLETE;
     this.i = 0;
     this.started = false;
+    this.finished = false;
     this.hintShown = false;
-    this.state = { scale: 'proximal', band: 'rgb', measured: false, health: null, maxStress: 0 };
+    this.state = { scale: 'proximal', band: 'rgb' };
     this._hintTimer = null;
+
+    this.onLevelComplete = null; // (nextLevelId|null) => void — set by main.js
+    this.onDialogueOpen = null;  // () => void — called when a completion dialogue shows
   }
 
-  start() {
-    this.started = true;
+  /** Begin (or restart) a level's mission. */
+  startLevel(id) {
+    const lvl = LEVELS[id] || LEVELS.corn;
+    this.levelId = id;
+    this.beats = lvl.beats;
+    this.complete = lvl.complete;
     this.i = 0;
+    this.started = true;
+    this.finished = false;
+    this.hintShown = false;
+    this._hideDialogue();
+    this.el.classList.add('show');
     this._render();
   }
 
-  /** Merge in the latest game state and advance through any completed beats. */
   sync(patch) {
     Object.assign(this.state, patch);
-    if (!this.started) return;
+    if (!this.started || this.finished) return;
     let advanced = false;
-    while (this.i < BEATS.length && BEATS[this.i].done(this.state)) {
+    while (this.i < this.beats.length && this.beats[this.i].done(this.state)) {
       this.i++;
       advanced = true;
+    }
+    if (this.i >= this.beats.length) {
+      this.finished = true;
+      this._render(true);
+      this._showDialogue();
+      return;
     }
     if (advanced) {
       this.hintShown = false;
       this._render(true);
     } else if (this._current().meter) {
-      this._renderMeter(); // keep the stress meter live between advances
+      this._renderMeter();
     }
   }
 
@@ -121,19 +199,19 @@ export class Mission {
   }
 
   _current() {
-    return this.i < BEATS.length ? BEATS[this.i] : FINALE;
+    return this.i < this.beats.length ? this.beats[this.i] : null;
   }
 
   _render(justAdvanced = false) {
     const beat = this._current();
-    const complete = this.i >= BEATS.length;
+    const complete = beat == null;
 
-    this.elEyebrow.textContent = beat.eyebrow;
-    this.elStep.textContent = complete ? '✓ done' : `Step ${this.i + 1} of ${BEATS.length}`;
-    this.elObj.textContent = beat.objective;
-    this.elStory.textContent = beat.story;
+    this.elEyebrow.textContent = complete ? 'Complete' : beat.eyebrow;
+    this.elStep.textContent = complete ? '✓ done' : `Step ${this.i + 1} of ${this.beats.length}`;
+    this.elObj.textContent = complete ? this.complete.title : beat.objective;
+    this.elStory.textContent = complete ? '' : beat.story;
 
-    this.elDots.innerHTML = BEATS.map((_, k) => {
+    this.elDots.innerHTML = this.beats.map((_, k) => {
       const cls = k < this.i ? 'done' : k === this.i ? 'active' : '';
       return `<span class="m-dot ${cls}"></span>`;
     }).join('');
@@ -141,7 +219,7 @@ export class Mission {
     this.el.classList.toggle('complete', complete);
     if (justAdvanced) {
       this.el.classList.remove('flash');
-      void this.el.offsetWidth; // restart the flash animation
+      void this.el.offsetWidth;
       this.el.classList.add('flash');
     }
 
@@ -150,26 +228,35 @@ export class Mission {
 
     clearTimeout(this._hintTimer);
     if (!complete && beat.hint) {
-      this._hintTimer = setTimeout(() => {
-        this.hintShown = true;
-        this._renderHint();
-      }, AUTO_HINT_MS);
+      this._hintTimer = setTimeout(() => { this.hintShown = true; this._renderHint(); }, AUTO_HINT_MS);
     }
   }
 
   _renderMeter() {
     if (!this.elMeter) return;
     const beat = this._current();
-    if (!beat.meter) {
-      this.elMeter.style.display = 'none';
+    const kind = beat && beat.meter;
+    if (!kind) { this.elMeter.style.display = 'none'; return; }
+    this.elMeter.style.display = 'block';
+
+    if (kind === 'coverage') {
+      const c = Math.min(1, this.state.coverage || 0);
+      this.elMeterFill.style.width = (c * 100).toFixed(0) + '%';
+      this.elMeterFill.style.background = '#c2412f'; // ladybug red
+      this.elMeterThresh.style.display = 'none';
+      this.elMeterLabel.textContent = c >= 0.999
+        ? 'Infestation treated: 100% ✓'
+        : `Treated: ${Math.round(c * 100)}% of the infested plants`;
       return;
     }
+
+    // stress meter
     const max = this.state.meterMax || 1;
     const fill = Math.min(1, (this.state.maxStress || 0) / max);
     const mark = Math.min(1, (this.state.meterThreshold || max) / max);
-    this.elMeter.style.display = 'block';
+    this.elMeterThresh.style.display = 'block';
     this.elMeterFill.style.width = (fill * 100).toFixed(0) + '%';
-    this.elMeterFill.style.background = `hsl(${Math.round((1 - fill) * 110)}, 72%, 46%)`; // green → red with stress
+    this.elMeterFill.style.background = `hsl(${Math.round((1 - fill) * 110)}, 72%, 46%)`;
     this.elMeterThresh.style.left = (mark * 100).toFixed(0) + '%';
     const pct = Math.round((this.state.maxStress || 0) * 100);
     const done = (this.state.maxStress || 0) >= (this.state.meterThreshold || 1);
@@ -180,12 +267,26 @@ export class Mission {
 
   _renderHint() {
     const beat = this._current();
-    if (!beat.hint) {
-      this.elHint.innerHTML = '';
-      return;
-    }
+    if (!beat || !beat.hint) { this.elHint.innerHTML = ''; return; }
     this.elHint.innerHTML = this.hintShown
       ? `<span class="m-hint-icon">💡</span> ${beat.hint} <span class="m-hint-key">(H to hide)</span>`
       : `<span class="m-hint-key">Stuck? Press <kbd>H</kbd> for a hint</span>`;
+  }
+
+  // --- completion dialogue ---
+  _showDialogue() {
+    if (!this.dlg) return;
+    this.dlgTitle.textContent = this.complete.title;
+    this.dlgBody.innerHTML = this.complete.body
+      .split('\n\n').map((p) => `<p>${p}</p>`).join('');
+    this.dlgBtn.textContent = this.complete.button;
+    this.dlg.classList.add('show');
+    if (this.onDialogueOpen) this.onDialogueOpen();
+  }
+  _hideDialogue() { if (this.dlg) this.dlg.classList.remove('show'); }
+  _dialogueContinue() {
+    this._hideDialogue();
+    const next = this.complete.next;
+    if (this.onLevelComplete) this.onLevelComplete(next);
   }
 }
