@@ -162,8 +162,44 @@ const ALMOND_COMPLETE = {
     'they closed their stomata, stopped cooling themselves, and ran hot (exactly what thermal sees). ' +
     'On the ground it looked fine; only the aerial and orbital views revealed it.\n\n' +
     'And across 5,000 acres, satellite imagery is the only practical way to flag which blocks to send ' +
-    'a crew or a drone to next. The right scale for the right question — the whole point of the job.',
-  button: 'Finish',
+    'a crew or a drone to next. One last job: zoom all the way out.',
+  button: 'Go to orbit →',
+  next: 'usa',
+};
+
+// --- Level 4: national — read NDVI across the whole country -----------------
+const USA_BEATS = [
+  {
+    eyebrow: 'Orbit · national',
+    objective: 'Read the map — drag to orbit, hover states to see their average NDVI',
+    story:
+      'From orbit a single field is a speck. What a satellite gives you instead is the whole country ' +
+      'at once: this is real MODIS growing-season NDVI, and every state has an average value. Green = ' +
+      'lush cropland and forest; brown = bare desert and range. Hover states to read them.',
+    hint: 'Drag to spin the globe and scroll to zoom. Hover any state to see its name and average NDVI.',
+    done: (s) => s.satHovered === true,
+  },
+  {
+    eyebrow: 'USDA task',
+    objective: 'Name the extremes — enter the highest- and lowest-NDVI states, then Submit',
+    story:
+      'The USDA wants the single greenest and single barest state by average growing-season NDVI. ' +
+      'Sweep the map, compare the values, and file your report in the box below. Get both right to ' +
+      'close out the survey.',
+    hint: 'The greenest states are humid Corn Belt cropland; the lowest are arid Great Basin / desert. Fill in both boxes and press Submit.',
+    done: (s) => s.satQuiz === true,
+  },
+];
+
+const USA_COMPLETE = {
+  title: 'Right tool, right scale',
+  body:
+    "Iowa's Corn Belt is the greenest state at peak season; Nevada's Great Basin desert is the barest. " +
+    'From a leaf clamp reading one plant, to a drone mapping one field, to a satellite ranking every ' +
+    'state — each scale answered a question none of the others could. Matching the instrument to the ' +
+    'question is the whole job.\n\n' +
+    'That completes the survey. The country is yours now — roam any field freely.',
+  button: 'Free roam',
   next: null,
 };
 
@@ -171,6 +207,7 @@ const LEVELS = {
   corn: { beats: CORN_BEATS, complete: CORN_COMPLETE },
   strawberry: { beats: BERRY_BEATS, complete: BERRY_COMPLETE },
   almond: { beats: ALMOND_BEATS, complete: ALMOND_COMPLETE },
+  usa: { beats: USA_BEATS, complete: USA_COMPLETE },
 };
 
 const AUTO_HINT_MS = 30000;
@@ -223,6 +260,26 @@ export class Mission {
     this._hideDialogue();
     this.el.classList.add('show');
     this._render();
+  }
+
+  /** Game finished: turn the panel into a persistent free-roam legend. */
+  freeRoam() {
+    this.started = false;
+    this.finished = true;
+    clearTimeout(this._hintTimer);
+    this._hideDialogue();
+    this.awaiting = false;
+    if (this.elMeter) this.elMeter.style.display = 'none';
+    this.elEyebrow.textContent = 'Free roam';
+    this.elStep.textContent = '✓ survey complete';
+    this.elObj.textContent = 'Explore any field, at any scale';
+    this.elStory.textContent =
+      'The campaign is done. Roam wherever you like and try every instrument.';
+    this.elDots.innerHTML = '';
+    this.elHint.innerHTML =
+      '<span class="m-hint-key"><kbd>F</kbd> change field &nbsp;·&nbsp; <kbd>Tab</kbd> board the drone anywhere &nbsp;·&nbsp; <kbd>V</kbd> regional satellite &nbsp;·&nbsp; <kbd>1–6</kbd> bands</span>';
+    this.el.classList.remove('complete');
+    this.el.classList.add('show');
   }
 
   sync(patch) {

@@ -134,6 +134,7 @@ export class SatelliteView {
     this.features = [];
     this.extremes = ndviExtremes();
     this.foundMax = false; this.foundMin = false; this.onExtremesFound = null;
+    this.onHover = null; // (name) => void — fires when the hovered state changes
 
     this.tip = document.createElement('div');
     Object.assign(this.tip.style, {
@@ -184,10 +185,9 @@ export class SatelliteView {
   }
 
   setSite(lat, lon) {
+    // The national NDVI objective is about the whole country, so we no longer
+    // drop a field-site marker — the pin stays hidden.
     this.site = { lat, lon };
-    this.pin.position.copy(latLonToVec3(lat, lon, 1.006));
-    this.pin.visible = true;
-    if (this.controls.enabled) this._swingTo(lat, lon);
   }
 
   flyToLocation(lat, lon) { this._swingTo(lat, lon, 1.6); }
@@ -266,6 +266,7 @@ export class SatelliteView {
       if (name === this.extremes.max.name) this.foundMax = true;
       if (name === this.extremes.min.name) this.foundMin = true;
       if (this.foundMax && this.foundMin && this.onExtremesFound) { const cb = this.onExtremesFound; this.onExtremesFound = null; cb(); }
+      if (name && this.onHover) this.onHover(name);
     }
     // Tooltip — just the raw value; students work out the extremes themselves.
     if (name && this._mouse.inside) {

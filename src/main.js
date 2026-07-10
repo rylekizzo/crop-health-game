@@ -9,6 +9,7 @@ import { SatelliteView } from './satellite.js';
 import { Telescope } from './telescope.js';
 import { LI600, VIEW_LAYER } from './li600.js';
 import { truePhysiology } from './healthField.js';
+import { STATE_NDVI } from './stateNDVI.js';
 import { buildPests } from './pests.js';
 import { BANDS, BAND_BY_ID, bandColor, legendGradient } from './bands.js';
 import { drawSpectralGraph } from './spectralGraph.js';
@@ -229,9 +230,12 @@ const spectralCanvas = document.getElementById('spectral-canvas');
 
 // Guided crop-scout mission (story + objectives + hints).
 const mission = new Mission();
-// Completing the satellite objective: the player hovers both the highest- and
-// lowest-NDVI states on the CONUS map.
-satellite.onExtremesFound = () => mission.sync({ satExtremes: true });
+// True once the whole campaign is finished: unlocks free roam (F to change
+// field, Tab to board the drone from anywhere).
+let gameComplete = false;
+
+// National level: hovering any state satisfies the "read the map" beat.
+satellite.onHover = () => mission.sync({ satHovered: true });
 
 // Enter was pressed on a completion box → advance to the next level (or finish).
 // Pointer stays locked throughout, so the player keeps moving while they read.
@@ -240,8 +244,70 @@ mission.onLevelComplete = (next) => {
     setScale('proximal');
     goToCrop(CROP_IDS.indexOf(next));
     mission.startLevel(next);
+  } else if (next === 'usa') {
+    // Zoom out to the orbital globe: NDVI-only, and the USDA extremes quiz.
+    setScale('satellite');
+    showQuiz(true);
+    mission.startLevel('usa');
+  } else if (next === null) {
+    // Campaign complete → free roam.
+    gameComplete = true;
+    showQuiz(false);
+    setScale('proximal');
+    mission.freeRoam();
   }
 };
+
+// --- USDA extremes quiz (national satellite level) ---
+const quizPanel = document.getElementById('state-quiz');
+const qMax = document.getElementById('q-max');
+const qMin = document.getElementById('q-min');
+const qFeedback = document.getElementById('q-feedback');
+const qSubmit = document.getElementById('q-submit');
+// Populate the datalist so students can pick/autocomplete state names.
+const qStates = document.getElementById('q-states');
+qStates.innerHTML = Object.keys(STATE_NDVI)
+  .sort()
+  .map((n) => `<option value="${n}"></option>`)
+  .join('');
+
+function showQuiz(on) {
+  quizPanel.classList.toggle('show', on);
+  if (on) {
+    qMax.value = ''; qMin.value = '';
+    qMax.className = ''; qMin.className = '';
+    qFeedback.textContent = '';
+    qFeedback.style.color = '';
+  } else {
+    qMax.blur(); qMin.blur();
+  }
+}
+
+const normState = (s) => (s || '').trim().toLowerCase();
+
+function submitQuiz() {
+  const want = satellite.extremes; // { max:{name}, min:{name} }
+  const maxOk = normState(qMax.value) === want.max.name.toLowerCase();
+  const minOk = normState(qMin.value) === want.min.name.toLowerCase();
+  qMax.className = maxOk ? 'ok' : 'bad';
+  qMin.className = minOk ? 'ok' : 'bad';
+  if (maxOk && minOk) {
+    qFeedback.style.color = '#a9e06a';
+    qFeedback.textContent = 'Report filed. ✓';
+    showQuiz(false);
+    mission.sync({ satQuiz: true });
+  } else {
+    qFeedback.style.color = '#e0975a';
+    const wrong = [];
+    if (!maxOk) wrong.push('highest');
+    if (!minOk) wrong.push('lowest');
+    qFeedback.textContent = `Not quite — recheck the ${wrong.join(' and ')} NDVI state and keep looking.`;
+  }
+}
+qSubmit.addEventListener('click', submitQuiz);
+for (const inp of [qMax, qMin]) {
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitQuiz(); } });
+}
 
 function renderBandKeys(activeId) {
   lgKeys.innerHTML = BANDS.map(
@@ -311,6 +377,7 @@ function setScale(next) {
     ring.visible = false;
     measuredInstance = -1;
     if (next === 'regional') { bandId = 'rgb'; setBand('rgb'); } // start the valley in true color
+    else if (next === 'satellite') { bandId = 'ndvi'; setBand('ndvi'); } // national view is NDVI-only
     else setBand(bandId); // apply current band to canopy / globe
   }
 
@@ -439,16 +506,19 @@ function inspectPlant(idx) {
 
 // --- Input ---
 document.addEventListener('keydown', (e) => {
+  // Don't hijack keys while the player is typing in the quiz fields.
+  if (e.target && e.target.tagName === 'INPUT') return;
   if (e.code === 'Tab') {
     e.preventDefault();
-    // Board the drone only when standing near it; Tab again lands & exits.
-    // (Satellite is reached another way — added later.)
-    if (scale === 'proximal' && nearDrone()) setScale('drone');
+    // Board the drone when standing near it (or from anywhere once the campaign
+    // is finished); Tab again lands & exits.
+    if (scale === 'proximal' && (gameComplete || nearDrone())) setScale('drone');
     else if (scale === 'drone') setScale('proximal');
     return;
   }
   if (e.code === 'KeyF' && !e.repeat) {
-    cycleCrop();
+    // Free field-switching is a reward for finishing the guided campaign.
+    if (gameComplete) cycleCrop();
     return;
   }
   if (e.code === 'KeyH' && !e.repeat) {
@@ -465,7 +535,9 @@ document.addEventListener('keydown', (e) => {
     else if (scale === 'drone' || scale === 'proximal') { regionalReturn = scale; setScale('regional'); }
     return;
   }
-  if (scale === 'drone' || scale === 'satellite' || scale === 'regional') {
+  // Band switching in the aerial/regional views. The national satellite view is
+  // deliberately locked to NDVI, so it's excluded.
+  if (scale === 'drone' || scale === 'regional') {
     const b = BANDS.find((x) => x.key === e.key);
     if (b) setBand(b.id);
     return;
@@ -551,38 +623,41 @@ function animate() {
 
   if (scale === 'proximal') {
     li600.update(dt);
-    if (li600.state === 'idle') {
-      if (controller.locked && nearDrone()) {
-        // Standing by the drone: prompt to board it instead of measuring.
-        aimedInstance = -1;
-        crosshair.classList.remove('targeting');
-        prompt.innerHTML = '<kbd>Tab</kbd> board the drone';
-        prompt.classList.add('show');
-        if (measuredInstance < 0) setRing(-1);
-      } else {
-        aimedInstance = controller.locked ? aimedPlant() : -1;
-        crosshair.classList.toggle('targeting', aimedInstance >= 0);
-        if (aimedInstance >= 0) {
-          prompt.innerHTML = CROP_IDS[cropIndex] === 'strawberry'
-            ? '<kbd>I</kbd> inspect for pests'
-            : '<kbd>E</kbd> clamp leaf &amp; measure';
-        }
-        prompt.classList.toggle('show', aimedInstance >= 0);
-        if (measuredInstance < 0) setRing(aimedInstance, aimedInstance >= 0 ? '#ffffff' : null);
-      }
-    } else {
+    if (li600.state === 'measuring') {
+      // Locked onto a leaf: hold the ring, and drop it if the player walks off.
       crosshair.classList.remove('targeting');
       prompt.classList.remove('show');
       aimedInstance = -1;
-      if (li600.state === 'measuring') {
-        setRing(measuredInstance, '#d8b13a');
-        tmpVec.set(basePos[measuredInstance * 3], controller.object.position.y, basePos[measuredInstance * 3 + 2]);
-        if (controller.object.position.distanceTo(tmpVec) > CLAMP_RANGE + 1.0) {
-          li600.release();
-          measuredInstance = -1;
-          ring.visible = false;
-        }
+      setRing(measuredInstance, '#d8b13a');
+      tmpVec.set(basePos[measuredInstance * 3], controller.object.position.y, basePos[measuredInstance * 3 + 2]);
+      if (controller.object.position.distanceTo(tmpVec) > CLAMP_RANGE + 1.0) {
+        li600.release();
+        measuredInstance = -1;
+        ring.visible = false;
       }
+    } else if (controller.locked && nearDrone()) {
+      // Standing by the drone: prompt to board it — even if a reading is still
+      // shown (this is the state you're in when you return from diagnosing).
+      aimedInstance = -1;
+      crosshair.classList.remove('targeting');
+      prompt.innerHTML = '<kbd>Tab</kbd> board the drone';
+      prompt.classList.add('show');
+      if (measuredInstance < 0) setRing(-1);
+    } else if (li600.state === 'idle') {
+      aimedInstance = controller.locked ? aimedPlant() : -1;
+      crosshair.classList.toggle('targeting', aimedInstance >= 0);
+      if (aimedInstance >= 0) {
+        prompt.innerHTML = CROP_IDS[cropIndex] === 'strawberry'
+          ? '<kbd>I</kbd> inspect for pests'
+          : '<kbd>E</kbd> clamp leaf &amp; measure';
+      }
+      prompt.classList.toggle('show', aimedInstance >= 0);
+      if (measuredInstance < 0) setRing(aimedInstance, aimedInstance >= 0 ? '#ffffff' : null);
+    } else {
+      // A reading is on screen and we're not near the drone.
+      crosshair.classList.remove('targeting');
+      prompt.classList.remove('show');
+      aimedInstance = -1;
     }
   }
 
