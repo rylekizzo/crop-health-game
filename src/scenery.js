@@ -499,11 +499,11 @@ function makeTractorUpdater(tractor, smoke) {
     smoke.update(dt);
     puffTimer -= dt;
     if (puffTimer <= 0) {
-      puffTimer = 0.85 + Math.random() * 0.5; // time between chugs
+      puffTimer = 0.6 + Math.random() * 0.35; // time between chugs
       tractor.updateMatrixWorld();
       exWorld.copy(exLocal);
       tractor.localToWorld(exWorld);
-      const n = 3 + Math.floor(Math.random() * 2); // 3–4 puffs per pulse
+      const n = 2 + Math.floor(Math.random() * 2); // 2–3 puffs per pulse
       for (let i = 0; i < n; i++) smoke.spawn(exWorld.x, exWorld.y, exWorld.z);
     }
   };
@@ -512,16 +512,24 @@ function makeTractorUpdater(tractor, smoke) {
 // A small pool of billboard smoke puffs (world-space, so they trail behind the
 // moving tractor). Each puff rises, expands, and fades.
 function makeSmokeTexture() {
-  const s = 64;
+  // A lumpy, cloudy puff (several overlapping soft blobs) so it reads as a
+  // billowing cartoon cloud rather than a soft dot.
+  const s = 128;
   const c = document.createElement('canvas');
   c.width = c.height = s;
   const x = c.getContext('2d');
-  const g = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  g.addColorStop(0, 'rgba(255,255,255,1)');
-  g.addColorStop(0.5, 'rgba(255,255,255,0.5)');
-  g.addColorStop(1, 'rgba(255,255,255,0)');
-  x.fillStyle = g;
-  x.fillRect(0, 0, s, s);
+  const blobs = [
+    [0.5, 0.55, 0.34], [0.34, 0.5, 0.24], [0.66, 0.5, 0.24],
+    [0.5, 0.36, 0.24], [0.4, 0.66, 0.21], [0.62, 0.66, 0.21],
+  ];
+  for (const [cx, cy, r] of blobs) {
+    const g = x.createRadialGradient(cx * s, cy * s, 0, cx * s, cy * s, r * s);
+    g.addColorStop(0, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.65, 'rgba(255,255,255,0.55)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, s, s);
+  }
   const tex = new THREE.CanvasTexture(c);
   return tex;
 }
@@ -529,12 +537,13 @@ function makeSmokeTexture() {
 function makeSmoke() {
   const tex = makeSmokeTexture();
   const group = new THREE.Group();
-  const N = 32;
+  group.renderOrder = 5;
+  const N = 36;
   const puffs = [];
   for (let i = 0; i < N; i++) {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xf4f4f2, transparent: true, opacity: 0, depthWrite: false }));
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xf8f8f6, transparent: true, opacity: 0, depthWrite: false }));
     sp.visible = false;
-    sp.userData = { active: false, age: 0, life: 1, vx: 0, vy: 0, vz: 0, s0: 1 };
+    sp.userData = { active: false, age: 0, life: 1, vx: 0, vy: 0, vz: 0, s0: 1, spin: 0 };
     group.add(sp);
     puffs.push(sp);
   }
@@ -545,15 +554,17 @@ function makeSmoke() {
     spawn(x, y, z) {
       const sp = puffs[cursor];
       cursor = (cursor + 1) % N;
-      sp.position.set(x + (Math.random() - 0.5) * 0.5, y + Math.random() * 0.2, z + (Math.random() - 0.5) * 0.5);
+      sp.position.set(x + (Math.random() - 0.5) * 0.4, y + Math.random() * 0.15, z + (Math.random() - 0.5) * 0.4);
       const u = sp.userData;
       u.active = true;
       u.age = 0;
-      u.life = 4.2 + Math.random() * 1.8;
-      u.vy = 2.6 + Math.random() * 1.0; // rises high so it's clear from the drone
-      u.vx = (Math.random() - 0.5) * 0.7;
-      u.vz = (Math.random() - 0.5) * 0.7;
-      u.s0 = 1.6 + Math.random() * 0.9; // large, cloudy start
+      u.life = 3.6 + Math.random() * 1.4;         // lingers a moment
+      u.vy = 2.2 + Math.random() * 1.0;           // gentle rise
+      u.vx = (Math.random() - 0.5) * 0.5;
+      u.vz = (Math.random() - 0.5) * 0.5;
+      u.s0 = 1.5 + Math.random() * 0.8;           // modest starting puff
+      u.spin = (Math.random() - 0.5) * 0.5;       // slow tumble
+      sp.material.rotation = Math.random() * Math.PI * 2;
       sp.visible = true;
     },
     update(dt) {
@@ -566,9 +577,10 @@ function makeSmoke() {
         sp.position.x += u.vx * dt;
         sp.position.y += u.vy * dt;
         sp.position.z += u.vz * dt;
-        u.vy *= 1 - dt * 0.12; // keeps rising for a while
-        sp.scale.setScalar(u.s0 + t * 9.0); // expand into a big exaggerated cloud
-        sp.material.opacity = 0.92 * Math.min(1, t * 8) * (1 - t * t); // fast in, fade out at the end
+        u.vy *= 1 - dt * 0.06;                     // keeps rising most of its life
+        sp.material.rotation += u.spin * dt;       // tumbling animation
+        sp.scale.setScalar(u.s0 + t * 7.5);        // billows out to a reasonable puff
+        sp.material.opacity = 0.95 * Math.min(1, t * 12) * (1 - t * t * t); // pops in, holds, fades late
       }
     },
   };

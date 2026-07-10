@@ -35,6 +35,9 @@
     opacity:0;
     transition:opacity .45s ease;
   }
+  /* case-study section (slides 12+) — cooler slate-teal background so it reads as its own chapter */
+  .slide.cs{background:radial-gradient(circle at 50% 18%, #0e1e29, #06090f 72%)}
+  .slide.cs .kicker{color:#5fd0c0}
   .slide.active{display:flex;opacity:1;animation:rise .55s cubic-bezier(.2,.7,.2,1)}
   @keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 
@@ -442,11 +445,40 @@
     <p class="sub wide" style="max-width:44ch;color:var(--fg)"><span class="accent">AgTech</span> is the work of closing that gap — applying sensors, data, and automation so the largest industry on Earth can also be one that improves quickly.</p>
   </section>
 
-  <!-- 11 — OUR FOCUS: SENSING CROP HEALTH -->
+  <!-- 11 — CAREERS -->
   <section class="slide">
-    <div class="kicker">Zooming in on one part of AgTech</div>
-    <h2>Today's lesson:<br><span class="accent">Sensing Crop Health.</span></h2>
-    <p class="sub wide" style="max-width:42ch">Out of everything AgTech does, we'll focus on one question — <em>how healthy is a crop, right now?</em> Answer it well and three of farming's hardest problems get easier:</p>
+    <div class="kicker">These are real jobs</div>
+    <h2>Careers in <span class="accent">AgTech.</span></h2>
+    <div class="jobgrid">
+      <div class="job">
+        <div class="jtop"><span class="jtitle">🧬 Plant Scientist</span><span class="jpay">$80–120k</span></div>
+        <div class="jco">Pivot Bio</div>
+        <div class="jd">A biologist studying plant genes and soil microbes to build hardier, higher-yielding crops.</div>
+      </div>
+      <div class="job">
+        <div class="jtop"><span class="jtitle">🌾 Crop Modeler</span><span class="jpay">$120–170k</span></div>
+        <div class="jco">Heritable Agriculture</div>
+        <div class="jd">Writes code that predicts how a crop will grow — plant science meets programming.</div>
+      </div>
+      <div class="job">
+        <div class="jtop"><span class="jtitle">🛰️ Geospatial Data Engineer</span><span class="jpay">$95–135k</span></div>
+        <div class="jco">Corteva Agriscience</div>
+        <div class="jd">Turns satellite and drone imagery into maps and tools farmers actually use.</div>
+      </div>
+      <div class="job">
+        <div class="jtop"><span class="jtitle">🤖 Field Application Engineer</span><span class="jpay">$85–115k</span></div>
+        <div class="jco">Bonsai Robotics</div>
+        <div class="jd">Sets up and tests self-driving farm robots out in real fields.</div>
+      </div>
+    </div>
+    <p class="footnote" style="text-align:center">Approximate US salaries — the field needs biologists, coders, engineers, and data scientists alike.</p>
+  </section>
+
+  <!-- 12 — OUR FOCUS: SENSING CROP HEALTH -->
+  <section class="slide">
+    <div class="kicker">Let's get specific</div>
+    <h2>A case study in AgTech:<br><span class="accent">Sensing Crop Health.</span></h2>
+    <p class="sub wide" style="max-width:42ch">Let's dive into one concrete example. We'll focus on a single question — <em>how healthy is a crop, right now?</em> Answer it well and three of farming's hardest problems get easier:</p>
     <div class="scales">
       <div class="scard">
         <div class="ic">📈</div>
@@ -466,7 +498,7 @@
     </div>
   </section>
 
-  <!-- 12 — YIELD -->
+  <!-- 13 — YIELD -->
   <section class="slide">
     <div class="kicker">What farming is really after</div>
     <h2>It all comes down to <span class="accent">yield.</span></h2>
@@ -477,7 +509,7 @@
     <p class="sub wide">Yield is simply <span class="accent">how much a field produces</span> — the grain, fruit, or nuts you actually harvest. Every farming decision exists to protect it, and healthier plants mean a bigger harvest.</p>
   </section>
 
-  <!-- 13 — PHOTOSYNTHESIS -->
+  <!-- 14 — PHOTOSYNTHESIS -->
   <section class="slide">
     <div class="kicker">Where yield comes from</div>
     <h2>Plants build food from <span class="accent">light.</span></h2>
@@ -496,14 +528,14 @@
     <p class="sub wide">Inside every leaf, <span class="accent">photosynthesis</span> combines sunlight, warmth, the carbon in air, and water into sugars — the plant's food. Those sugars become stems, fruit, and grain: <em>yield</em>. (It also releases the oxygen we breathe.)</p>
   </section>
 
-  <!-- 14 — THE PROBLEM -->
+  <!-- 15 — THE PROBLEM -->
   <section class="slide">
     <div class="kicker">The problem</div>
     <h2>Plants can't tell you<br>when they're sick.</h2>
     <p class="sub wide">Photosynthesis can be failing inside a plant long before you'd ever see it. A field holds <span class="accent">millions of plants</span> across hundreds of acres — by the time leaves look bad to your eye, it's often too late. So how do we spot stress <em>early</em>, across a whole field?</p>
   </section>
 
-  <!-- 15 — WHAT IS LIGHT -->
+  <!-- 16 — WHAT IS LIGHT -->
   <section class="slide">
     <div class="kicker">First — what is light?</div>
     <h2>Light is energy that travels as a <span class="accent">wave.</span></h2>
@@ -550,7 +582,7 @@
     <p class="sub wide">The only difference between radio waves, the colors you see, and X-rays is the <span class="accent">wavelength</span> — how far apart the waves are. "Color" is just your eye's name for a few of those wavelengths.</p>
   </section>
 
-  <!-- 16 — LIGHT IS ALSO PARTICLES -->
+  <!-- 17 — LIGHT IS ALSO PARTICLES -->
   <section class="slide">
     <div class="kicker">The other half of the story</div>
     <h2>Light is also a stream of <span class="accent">particles.</span></h2>
@@ -566,7 +598,7 @@
     <p class="sub wide">Each packet is a <span class="accent">photon</span> — a tiny bundle of energy. Every photon travels at the same speed: about 300,000 kilometers per second, the fastest anything in the universe can go. Its color tells you its energy — blue photons carry more than red ones.</p>
   </section>
 
-  <!-- 17 — THE SPECTRUM GRAPH -->
+  <!-- 18 — THE SPECTRUM GRAPH -->
   <section class="slide">
     <div class="kicker">The whole spectrum</div>
     <h2>Human sight is a <span class="accent">tiny slice</span> of it.</h2>
@@ -636,7 +668,7 @@
     <p class="sub wide">Every color you've ever seen is squeezed into that one green-outlined band — roughly 400 to 700 nanometers. Everything else is invisible to us, but not to a camera.</p>
   </section>
 
-  <!-- 18 — LIGHT: CAMERAS SEE MORE -->
+  <!-- 19 — LIGHT: CAMERAS SEE MORE -->
   <section class="slide">
     <div class="kicker">Cameras see the rest</div>
     <h2>The invisible bands<br>carry <span class="accent">real signals.</span></h2>
@@ -655,7 +687,7 @@
     <p class="sub wide">Different bands of light reveal different things about the world. For plants, they expose water stress, leaf structure, and photosynthesis — the signals farming needs.</p>
   </section>
 
-  <!-- 19 — BIG IDEA -->
+  <!-- 20 — BIG IDEA -->
   <section class="slide">
     <div class="kicker">The big idea</div>
     <h2>We measure crop health at <span class="accent">three scales.</span></h2>
@@ -682,7 +714,7 @@
     <p class="sub wide">Zoom in for the truth, zoom out for the big picture. In the game you'll switch between all three.</p>
   </section>
 
-  <!-- 20 — GROUND -->
+  <!-- 21 — GROUND -->
   <section class="slide">
     <div class="kicker">Scale 1 · Ground</div>
     <h2>Take a plant's pulse.</h2>
@@ -692,7 +724,7 @@
     <p class="sub wide">On the ground you clamp a real instrument (the <span class="accent">LI-600</span>) onto a single leaf. It measures how the plant is <em>breathing</em> and <em>photosynthesizing</em> right now — its true health.</p>
   </section>
 
-  <!-- 21 — DRONE -->
+  <!-- 22 — DRONE -->
   <section class="slide">
     <div class="two">
       <div class="drone">🚁</div>
@@ -704,7 +736,7 @@
     </div>
   </section>
 
-  <!-- 22 — SATELLITE -->
+  <!-- 23 — SATELLITE -->
   <section class="slide">
     <div class="two">
       <div class="stack">
@@ -718,7 +750,7 @@
     </div>
   </section>
 
-  <!-- 23 — THE BANDS WE USE -->
+  <!-- 24 — THE BANDS WE USE -->
   <section class="slide">
     <div class="kicker">The bands we read</div>
     <h2>Each band shows a<br><span class="accent">different signal.</span></h2>
@@ -730,7 +762,7 @@
     <p class="sub wide">In the game you'll switch bands at the drone and satellite scales to see what your eyes can't.</p>
   </section>
 
-  <!-- 24 — NDVI -->
+  <!-- 25 — NDVI -->
   <section class="slide imgslide">
     <div class="kicker">The famous one</div>
     <h2 style="margin-bottom:.5rem">NDVI turns two colors into a <span class="accent">health map.</span></h2>
@@ -739,40 +771,11 @@
     <div class="formula sm">NDVI = (<span class="nir">NIR</span> − <span class="red">Red</span>) / (<span class="nir">NIR</span> + <span class="red">Red</span>)</div>
   </section>
 
-  <!-- 25 — WHY IT MATTERS -->
+  <!-- 26 — WHY IT MATTERS -->
   <section class="slide">
     <div class="kicker">Why it matters</div>
     <h2>Less water. More food.<br><span class="accent">Real careers.</span></h2>
     <p class="sub wide">Catching stress early means farmers grow more food using less water, fuel, and chemicals. The people who build this mix <span class="accent">biology, data, drones, and code</span> — and they're hiring.</p>
-  </section>
-
-  <!-- 26 — CAREERS -->
-  <section class="slide">
-    <div class="kicker">These are real jobs</div>
-    <h2>Careers in <span class="accent">AgTech.</span></h2>
-    <div class="jobgrid">
-      <div class="job">
-        <div class="jtop"><span class="jtitle">🧬 Plant Scientist</span><span class="jpay">$80–120k</span></div>
-        <div class="jco">Pivot Bio</div>
-        <div class="jd">A biologist studying plant genes and soil microbes to build hardier, higher-yielding crops.</div>
-      </div>
-      <div class="job">
-        <div class="jtop"><span class="jtitle">🌾 Crop Modeler</span><span class="jpay">$120–170k</span></div>
-        <div class="jco">Heritable Agriculture</div>
-        <div class="jd">Writes code that predicts how a crop will grow — plant science meets programming.</div>
-      </div>
-      <div class="job">
-        <div class="jtop"><span class="jtitle">🛰️ Geospatial Data Engineer</span><span class="jpay">$95–135k</span></div>
-        <div class="jco">Corteva Agriscience</div>
-        <div class="jd">Turns satellite and drone imagery into maps and tools farmers actually use.</div>
-      </div>
-      <div class="job">
-        <div class="jtop"><span class="jtitle">🤖 Field Application Engineer</span><span class="jpay">$85–115k</span></div>
-        <div class="jco">Bonsai Robotics</div>
-        <div class="jd">Sets up and tests self-driving farm robots out in real fields.</div>
-      </div>
-    </div>
-    <p class="footnote" style="text-align:center">Approximate US salaries — the field needs biologists, coders, engineers, and data scientists alike.</p>
   </section>
 
   <!-- 27 — CROPS -->
@@ -787,7 +790,7 @@
     <p class="sub wide">Walk the rows, fly the drone, and zoom to orbit — each crop hides stressed plants for you to find.</p>
   </section>
 
-  <!-- 27 — PLAY -->
+  <!-- 28 — PLAY -->
   <section class="slide">
     <div class="scene"><div class="sky"></div><div class="rows"></div></div>
     <div class="kicker">Your turn</div>
