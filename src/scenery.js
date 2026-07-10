@@ -549,11 +549,11 @@ function makeSmoke() {
       const u = sp.userData;
       u.active = true;
       u.age = 0;
-      u.life = 2.4 + Math.random() * 1.1;
-      u.vy = 1.2 + Math.random() * 0.6;
-      u.vx = (Math.random() - 0.5) * 0.6;
-      u.vz = (Math.random() - 0.5) * 0.6;
-      u.s0 = 0.9 + Math.random() * 0.6; // big, cloudy start
+      u.life = 4.2 + Math.random() * 1.8;
+      u.vy = 2.6 + Math.random() * 1.0; // rises high so it's clear from the drone
+      u.vx = (Math.random() - 0.5) * 0.7;
+      u.vz = (Math.random() - 0.5) * 0.7;
+      u.s0 = 1.6 + Math.random() * 0.9; // large, cloudy start
       sp.visible = true;
     },
     update(dt) {
@@ -566,8 +566,8 @@ function makeSmoke() {
         sp.position.x += u.vx * dt;
         sp.position.y += u.vy * dt;
         sp.position.z += u.vz * dt;
-        u.vy *= 1 - dt * 0.25; // buoyant rise eases off
-        sp.scale.setScalar(u.s0 + t * 5.0); // expand into a big exaggerated puff
+        u.vy *= 1 - dt * 0.12; // keeps rising for a while
+        sp.scale.setScalar(u.s0 + t * 9.0); // expand into a big exaggerated cloud
         sp.material.opacity = 0.92 * Math.min(1, t * 8) * (1 - t * t); // fast in, fade out at the end
       }
     },

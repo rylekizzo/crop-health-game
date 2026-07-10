@@ -194,6 +194,18 @@
   .co.hl .cn{color:var(--accent)}
   @media(max-width:760px){.cogrid{grid-template-columns:repeat(2,1fr)}}
 
+  /* jobs / careers */
+  .jobgrid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(.7rem,1.6vw,1.1rem);
+    width:100%;max-width:920px;margin-top:1.8rem}
+  .job{background:rgba(255,255,255,.04);border:1px solid rgba(124,194,66,.22);border-radius:14px;
+    padding:1rem 1.2rem;text-align:left;display:flex;flex-direction:column;gap:.15rem}
+  .job .jtop{display:flex;justify-content:space-between;align-items:baseline;gap:.7rem}
+  .job .jtitle{font-weight:800;font-size:clamp(.98rem,1.9vw,1.28rem)}
+  .job .jpay{font-weight:800;color:var(--accent);font-size:clamp(.95rem,1.9vw,1.3rem);white-space:nowrap}
+  .job .jco{color:var(--muted);font-weight:600;font-size:clamp(.78rem,1.4vw,.96rem)}
+  .job .jd{color:var(--muted);font-size:clamp(.76rem,1.4vw,.94rem);line-height:1.35;margin-top:.3rem}
+  @media(max-width:760px){.jobgrid{grid-template-columns:1fr}}
+
   /* image slide */
   .imgslide{padding:4vh 5vw}
   .bigimg{max-width:min(92vw,1300px);max-height:62vh;border-radius:12px;
@@ -734,7 +746,36 @@
     <p class="sub wide">Catching stress early means farmers grow more food using less water, fuel, and chemicals. The people who build this mix <span class="accent">biology, data, drones, and code</span> — and they're hiring.</p>
   </section>
 
-  <!-- 26 — CROPS -->
+  <!-- 26 — CAREERS -->
+  <section class="slide">
+    <div class="kicker">These are real jobs</div>
+    <h2>Careers in <span class="accent">AgTech.</span></h2>
+    <div class="jobgrid">
+      <div class="job">
+        <div class="jtop"><span class="jtitle">🧬 Plant Scientist</span><span class="jpay">$80–120k</span></div>
+        <div class="jco">Pivot Bio</div>
+        <div class="jd">A biologist studying plant genes and soil microbes to build hardier, higher-yielding crops.</div>
+      </div>
+      <div class="job">
+        <div class="jtop"><span class="jtitle">🌾 Crop Modeler</span><span class="jpay">$120–170k</span></div>
+        <div class="jco">Heritable Agriculture</div>
+        <div class="jd">Writes code that predicts how a crop will grow — plant science meets programming.</div>
+      </div>
+      <div class="job">
+        <div class="jtop"><span class="jtitle">🛰️ Geospatial Data Engineer</span><span class="jpay">$95–135k</span></div>
+        <div class="jco">Corteva Agriscience</div>
+        <div class="jd">Turns satellite and drone imagery into maps and tools farmers actually use.</div>
+      </div>
+      <div class="job">
+        <div class="jtop"><span class="jtitle">🤖 Field Application Engineer</span><span class="jpay">$85–115k</span></div>
+        <div class="jco">Bonsai Robotics</div>
+        <div class="jd">Sets up and tests self-driving farm robots out in real fields.</div>
+      </div>
+    </div>
+    <p class="footnote" style="text-align:center">Approximate US salaries — the field needs biologists, coders, engineers, and data scientists alike.</p>
+  </section>
+
+  <!-- 27 — CROPS -->
   <section class="slide">
     <div class="kicker">In the game</div>
     <h2>Three crops, three worlds.</h2>
