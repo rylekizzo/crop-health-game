@@ -138,7 +138,8 @@ export class Mission {
     this.dlgTitle = document.getElementById('d-title');
     this.dlgBody = document.getElementById('d-body');
     this.dlgBtn = document.getElementById('d-button');
-    if (this.dlgBtn) this.dlgBtn.addEventListener('click', () => this._dialogueContinue());
+    if (this.dlgBtn) this.dlgBtn.addEventListener('click', () => this.proceed());
+    this.awaiting = false; // a completion box is up, waiting for Enter
 
     this.levelId = 'corn';
     this.beats = CORN_BEATS;
@@ -151,7 +152,6 @@ export class Mission {
     this._hintTimer = null;
 
     this.onLevelComplete = null; // (nextLevelId|null) => void — set by main.js
-    this.onDialogueOpen = null;  // () => void — called when a completion dialogue shows
   }
 
   /** Begin (or restart) a level's mission. */
@@ -273,20 +273,23 @@ export class Mission {
       : `<span class="m-hint-key">Stuck? Press <kbd>H</kbd> for a hint</span>`;
   }
 
-  // --- completion dialogue ---
+  // --- completion text box (non-blocking; advance with Enter) ---
   _showDialogue() {
     if (!this.dlg) return;
+    this.el.classList.remove('show'); // hand the top-centre slot to the box
     this.dlgTitle.textContent = this.complete.title;
     this.dlgBody.innerHTML = this.complete.body
       .split('\n\n').map((p) => `<p>${p}</p>`).join('');
-    this.dlgBtn.textContent = this.complete.button;
+    this.dlgBtn.innerHTML = `${this.complete.button} &nbsp; <kbd>Enter</kbd>`;
     this.dlg.classList.add('show');
-    if (this.onDialogueOpen) this.onDialogueOpen();
+    this.awaiting = true;
   }
   _hideDialogue() { if (this.dlg) this.dlg.classList.remove('show'); }
-  _dialogueContinue() {
+  /** Advance past a completion box (Enter or click). */
+  proceed() {
+    if (!this.awaiting) return;
+    this.awaiting = false;
     this._hideDialogue();
-    const next = this.complete.next;
-    if (this.onLevelComplete) this.onLevelComplete(next);
+    if (this.onLevelComplete) this.onLevelComplete(this.complete.next);
   }
 }

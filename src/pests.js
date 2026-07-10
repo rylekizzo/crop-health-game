@@ -76,36 +76,94 @@ export function buildPests(basePos, health, bounds) {
   aphids.frustumCulled = false;
   group.add(aphids);
 
-  // --- ladybugs, hidden until the drone treats each plant ---
-  const lbGeo = new THREE.SphereGeometry(0.09, 8, 6);
-  lbGeo.scale(1, 0.55, 1.25);
-  const lb = new THREE.InstancedMesh(
-    lbGeo,
-    new THREE.MeshStandardMaterial({ color: 0xcf2b23, roughness: 0.5 }),
-    Math.max(1, infested.length)
-  );
-  lb.castShadow = false;
-  lb.count = infested.length;
   const d = new THREE.Object3D();
-  for (let i = 0; i < infested.length; i++) {
-    const idx = infested[i];
-    d.position.set(basePos[idx * 3], 0.16, basePos[idx * 3 + 2]);
-    d.scale.setScalar(0);
-    d.updateMatrix();
-    lb.setMatrixAt(i, d.matrix);
+
+  // --- coverage grid: ~3 m cells that contain infested plants ---
+  const CELL = 3.0;
+  const cellMap = new Map();
+  for (const idx of infested) {
+    const gx = Math.round(basePos[idx * 3] / CELL), gz = Math.round(basePos[idx * 3 + 2] / CELL);
+    const key = gx + '_' + gz;
+    if (!cellMap.has(key)) cellMap.set(key, { cx: gx * CELL, cz: gz * CELL });
+  }
+  const cells = [...cellMap.values()];
+
+  // --- ladybugs: a few per cell, hidden until the cell is treated ---
+  const PER = 6;
+  const lbGeo = new THREE.SphereGeometry(0.11, 8, 6);
+  lbGeo.scale(1, 0.55, 1.25);
+  const lb = new THREE.InstancedMesh(lbGeo, new THREE.MeshStandardMaterial({ color: 0xcf2b23, roughness: 0.5 }), Math.max(1, cells.length * PER));
+  lb.count = cells.length * PER;
+  lb.castShadow = false;
+  const lbPos = new Float32Array(Math.max(2, cells.length * PER * 2));
+  for (let c = 0; c < cells.length; c++) {
+    for (let k = 0; k < PER; k++) {
+      const j = c * PER + k;
+      lbPos[j * 2] = cells[c].cx + (Math.random() - 0.5) * CELL * 0.85;
+      lbPos[j * 2 + 1] = cells[c].cz + (Math.random() - 0.5) * CELL * 0.85;
+      d.position.set(lbPos[j * 2], 0.18, lbPos[j * 2 + 1]);
+      d.scale.setScalar(0);
+      d.updateMatrix();
+      lb.setMatrixAt(j, d.matrix);
+    }
   }
   lb.instanceMatrix.needsUpdate = true;
   group.add(lb);
 
-  const treated = new Uint8Array(Math.max(1, infested.length));
+  // --- treated overlay: a translucent green tile per treated cell (shows in any band) ---
+  const ovGeo = new THREE.PlaneGeometry(CELL * 1.02, CELL * 1.02);
+  ovGeo.rotateX(-Math.PI / 2);
+  const ov = new THREE.InstancedMesh(ovGeo, new THREE.MeshBasicMaterial({ color: 0x6dfba0, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }), Math.max(1, cells.length));
+  ov.count = cells.length;
+  ov.renderOrder = 4;
+  for (let c = 0; c < cells.length; c++) {
+    d.position.set(cells[c].cx, 0.4, cells[c].cz);
+    d.rotation.set(0, 0, 0);
+    d.scale.setScalar(0);
+    d.updateMatrix();
+    ov.setMatrixAt(c, d.matrix);
+  }
+  ov.instanceMatrix.needsUpdate = true;
+  group.add(ov);
+
+  // --- falling ladybug drop particles (exaggerated, so the release reads clearly) ---
+  const DROP_N = 90;
+  const drop = new THREE.InstancedMesh(new THREE.SphereGeometry(0.28, 8, 6), new THREE.MeshStandardMaterial({ color: 0xe23b2e, roughness: 0.5 }), DROP_N);
+  drop.count = DROP_N;
+  drop.castShadow = false;
+  for (let i = 0; i < DROP_N; i++) { d.position.set(0, -999, 0); d.scale.setScalar(0); d.updateMatrix(); drop.setMatrixAt(i, d.matrix); }
+  drop.instanceMatrix.needsUpdate = true;
+  group.add(drop);
+  const ds = [];
+  for (let i = 0; i < DROP_N; i++) ds.push({ active: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, spin: 2 + Math.random() * 5 });
+  let dropCursor = 0, dropAccum = 0;
+
+  const treated = new Uint8Array(Math.max(1, cells.length));
   let treatedCount = 0;
   let time = 0;
+
+  function revealCell(c) {
+    for (let k = 0; k < PER; k++) {
+      const j = c * PER + k;
+      d.position.set(lbPos[j * 2], 0.18, lbPos[j * 2 + 1]);
+      d.rotation.set(0, Math.random() * 6.283, 0);
+      d.scale.setScalar(1);
+      d.updateMatrix();
+      lb.setMatrixAt(j, d.matrix);
+    }
+    d.position.set(cells[c].cx, 0.4, cells[c].cz);
+    d.rotation.set(0, 0, 0);
+    d.scale.setScalar(1);
+    d.updateMatrix();
+    ov.setMatrixAt(c, d.matrix);
+  }
 
   return {
     group,
     totalInfested: infested.length,
     update(dt) {
       time += dt;
+      // aphids buzz
       const p = aphids.geometry.attributes.position;
       for (let i = 0; i < count; i++) {
         const ph = phase[i];
@@ -114,29 +172,50 @@ export function buildPests(basePos, health, bounds) {
         p.array[i * 3 + 2] = base[i * 3 + 2] + Math.cos(time * 6.5 + ph) * 0.06;
       }
       if (count) p.needsUpdate = true;
+      // falling ladybug drops
+      let anyDrop = false;
+      for (let i = 0; i < DROP_N; i++) {
+        const s = ds[i];
+        if (!s.active) continue;
+        s.vy -= 9 * dt;
+        s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
+        if (s.y <= 0.22) { s.active = false; d.position.set(0, -999, 0); d.scale.setScalar(0); }
+        else { d.position.set(s.x, s.y, s.z); d.rotation.set(time * s.spin, time * s.spin * 0.7, 0); d.scale.setScalar(1); }
+        d.updateMatrix();
+        drop.setMatrixAt(i, d.matrix);
+        anyDrop = true;
+      }
+      if (anyDrop) drop.instanceMatrix.needsUpdate = true;
     },
-    /** Reveal ladybugs on infested plants within `radius` of (x,z); returns coverage. */
+    /** Stream falling ladybugs from (x,y,z) while the release button is held. */
+    emit(x, y, z, dt) {
+      dropAccum += dt;
+      while (dropAccum >= 0.04) {
+        dropAccum -= 0.04;
+        const s = ds[dropCursor];
+        dropCursor = (dropCursor + 1) % DROP_N;
+        s.active = true;
+        s.x = x + (Math.random() - 0.5) * 1.6;
+        s.y = y - 0.4;
+        s.z = z + (Math.random() - 0.5) * 1.6;
+        s.vx = (Math.random() - 0.5) * 1.0;
+        s.vy = -2.0 - Math.random() * 1.5;
+        s.vz = (Math.random() - 0.5) * 1.0;
+      }
+    },
+    /** Treat infested cells within `radius` of (x,z); returns coverage 0..1. */
     treatAt(x, z, radius) {
       const r2 = radius * radius;
       let changed = false;
-      for (let i = 0; i < infested.length; i++) {
-        if (treated[i]) continue;
-        const idx = infested[i];
-        const dx = x - basePos[idx * 3], dz = z - basePos[idx * 3 + 2];
-        if (dx * dx + dz * dz < r2) {
-          treated[i] = 1; treatedCount++;
-          d.position.set(basePos[idx * 3], 0.16, basePos[idx * 3 + 2]);
-          d.rotation.set(0, Math.random() * Math.PI * 2, 0);
-          d.scale.setScalar(1);
-          d.updateMatrix();
-          lb.setMatrixAt(i, d.matrix);
-          changed = true;
-        }
+      for (let c = 0; c < cells.length; c++) {
+        if (treated[c]) continue;
+        const dx = x - cells[c].cx, dz = z - cells[c].cz;
+        if (dx * dx + dz * dz < r2) { treated[c] = 1; treatedCount++; revealCell(c); changed = true; }
       }
-      if (changed) lb.instanceMatrix.needsUpdate = true;
-      return infested.length ? treatedCount / infested.length : 1;
+      if (changed) { lb.instanceMatrix.needsUpdate = true; ov.instanceMatrix.needsUpdate = true; }
+      return cells.length ? treatedCount / cells.length : 1;
     },
-    coverage() { return infested.length ? treatedCount / infested.length : 1; },
+    coverage() { return cells.length ? treatedCount / cells.length : 1; },
     dispose() {
       group.traverse((o) => {
         if (o.geometry) o.geometry.dispose();

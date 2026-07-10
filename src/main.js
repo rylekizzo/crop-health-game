@@ -52,7 +52,6 @@ let field, health, basePos, walkBound, flyBound;
 let worstStress = 0.9, stressThreshold = 0.8, maxStressMeasured = 0;
 let pests = null;        // strawberry aphid system (flags, aphids, ladybugs), null otherwise
 let dropping = false;    // holding the release button in the strawberry drone
-let inDialogue = false;  // a level-completion dialogue is open
 let scenery = buildScenery(scene, CROPS[CROP_IDS[cropIndex]].setting, env);
 if (scenery.walkBound != null) walkBound = scenery.walkBound;
 
@@ -229,21 +228,14 @@ const mission = new Mission();
 // lowest-NDVI states on the CONUS map.
 satellite.onExtremesFound = () => mission.sync({ satExtremes: true });
 
-// A completion dialogue opened → release the cursor so its button is clickable
-// (without popping the intro overlay).
-mission.onDialogueOpen = () => {
-  inDialogue = true;
-  if (controller.locked) controller.controls.unlock();
-};
-// The dialogue's button was pressed → advance to the next level (or finish).
+// Enter was pressed on a completion box → advance to the next level (or finish).
+// Pointer stays locked throughout, so the player keeps moving while they read.
 mission.onLevelComplete = (next) => {
-  inDialogue = false;
   if (next === 'strawberry') {
     setScale('proximal');
     goToCrop(CROP_IDS.indexOf('strawberry'));
     mission.startLevel('strawberry');
   }
-  controller.lock(); // resume play (this click is a user gesture)
 };
 
 function renderBandKeys(activeId) {
@@ -451,6 +443,10 @@ document.addEventListener('keydown', (e) => {
     mission.toggleHint();
     return;
   }
+  if (e.code === 'Enter' && !e.repeat && mission.awaiting) {
+    mission.proceed(); // advance a level-completion box
+    return;
+  }
   if (scale === 'drone' || scale === 'satellite') {
     const b = BANDS.find((x) => x.key === e.key);
     if (b) setBand(b.id);
@@ -490,8 +486,7 @@ controller.controls.addEventListener('lock', () => {
   if (!mission.started) mission.startLevel('corn'); // begin level 1 on first entry
 });
 controller.controls.addEventListener('unlock', () => {
-  // Don't pop the intro overlay while a completion dialogue is open.
-  if (scale !== 'satellite' && !inDialogue) overlay.classList.remove('hidden');
+  if (scale !== 'satellite') overlay.classList.remove('hidden');
 });
 
 // --- Resize ---
@@ -525,8 +520,9 @@ function animate() {
       pests.update(dt);
       // Strawberry drone: hold the button to release ladybugs over the patch.
       if (scale === 'drone' && dropping) {
-        const cov = pests.treatAt(drone.group.position.x, drone.group.position.z, 7.0);
-        mission.sync({ coverage: cov });
+        const p = drone.group.position;
+        pests.emit(p.x, p.y, p.z, dt); // visible falling ladybugs
+        mission.sync({ coverage: pests.treatAt(p.x, p.z, 7.0) });
       }
     }
   }
