@@ -50,20 +50,6 @@ export class Telescope {
       for (let sy = 0; sy < secRows; sy++) subdivide(sx * this.SEC, sy * this.SEC, this.SEC, this.SEC, 0);
     }
 
-    // A few major roads / canals wandering across the valley.
-    this.roads = [];
-    for (let i = 0; i < 6; i++) {
-      const horiz = i % 2 === 0;
-      const at = 0.1 + Math.random() * 0.8;
-      const pts = [];
-      for (let t = 0; t <= 1.0001; t += 0.08) {
-        const wob = Math.sin(t * 5 + i * 1.3) * 0.05;
-        if (horiz) pts.push([t * this.worldW, (at + wob) * this.worldH]);
-        else pts.push([(at + wob) * this.worldW, t * this.worldH]);
-      }
-      this.roads.push(pts);
-    }
-
     this._onMove = this._handleMove.bind(this);
     this._onDown = (e) => { this.mouse.down = true; this.mouse.lx = e.clientX; this.mouse.ly = e.clientY; this.canvas.style.cursor = 'grabbing'; };
     this._onUp = () => { this.mouse.down = false; this.canvas.style.cursor = 'grab'; };
@@ -140,19 +126,6 @@ export class Telescope {
         ctx.lineWidth = 1;
         ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
       }
-    }
-
-    // roads / canals
-    ctx.strokeStyle = 'rgba(10,12,10,0.92)';
-    ctx.lineWidth = Math.max(2, 5 * s);
-    ctx.lineJoin = 'round';
-    for (const road of this.roads) {
-      ctx.beginPath();
-      for (let i = 0; i < road.length; i++) {
-        const rx = road[i][0] * s + this.panX, ry = road[i][1] * s + this.panY;
-        if (i === 0) ctx.moveTo(rx, ry); else ctx.lineTo(rx, ry);
-      }
-      ctx.stroke();
     }
 
     this._drawScope(ctx);
